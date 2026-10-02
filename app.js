@@ -5,7 +5,7 @@
 
 'use strict';
 
-const ANSWER_DESIGNS = ['letters', 'numbers'];
+const ANSWER_DESIGNS = ['letters', 'numbers', 'text'];
 const MIN_ANSWER_COUNT = 1;
 const MAX_ANSWER_COUNT = 10;
 const MIN_COUNT = 1;
@@ -22,6 +22,7 @@ const els = {
   },
   setupForm: $('#setup-form'),
   name: $('#name'),
+  answerCountField: $('#answer-count-field'),
   answerCount: $('#answer-count'),
   answerDesign: $('#answer-design'),
   count: $('#count'),
@@ -112,7 +113,10 @@ function sanitizeAnswers(raw) {
   if (typeof raw !== 'object' || raw === null) return out;
   for (const [key, value] of Object.entries(raw)) {
     const idx = Number(key);
-    if (Number.isInteger(idx) && idx >= 0 && idx < MAX_COUNT && answerOptions().includes(value)) {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= MAX_COUNT) continue;
+    if (isFreeText() && typeof value === 'string' && value.trim()) {
+      out[idx] = value.trim().slice(0, 200);
+    } else if (!isFreeText() && answerOptions().includes(value)) {
       out[idx] = value;
     }
   }
@@ -161,6 +165,7 @@ const unanswered = () => {
 };
 
 const displayName = () => state.name.trim() || 'Deltagare';
+const isFreeText = () => state.answerDesign === 'text';
 const answerOptions = () => {
   if (state.answerDesign === 'numbers') {
     return Array.from({ length: state.answerCount }, (_, index) => String(index + 1));
@@ -208,6 +213,7 @@ function render() {
 
   if (state.view === 'setup') {
     els.name.value = state.name;
+    els.answerCountField.hidden = isFreeText();
     els.answerCount.value = String(state.answerCount);
     els.answerDesign.value = state.answerDesign;
     els.count.value = String(state.count);
@@ -277,6 +283,7 @@ els.answerCount.addEventListener('change', () => {
 els.answerDesign.addEventListener('change', () => {
   state.answerDesign = ANSWER_DESIGNS.includes(els.answerDesign.value) ? els.answerDesign.value : 'letters';
   resetAnswersForOptionChange();
+  els.answerCountField.hidden = isFreeText();
 });
 
 els.count.addEventListener('input', readCountInput);
@@ -302,7 +309,9 @@ function renderSheet() {
 
   els.whoName.textContent = displayName();
   els.whoAvatar.textContent = displayName().charAt(0);
-  els.answerHint.innerHTML = `${answerOptions().map((option) => `<kbd>${option}</kbd>`).join('')}<span class="hintbar__sep" aria-hidden="true">&middot;</span><span>kryssa i med tangentbordet &ndash; <kbd>&uarr;</kbd><kbd>&darr;</kbd> byter fr&aring;ga</span>`;
+  els.answerHint.innerHTML = isFreeText()
+    ? '<span>Skriv ett svar till varje fr&aring;ga</span>'
+    : `${answerOptions().map((option) => `<kbd>${option}</kbd>`).join('')}<span class="hintbar__sep" aria-hidden="true">&middot;</span><span>kryssa i med tangentbordet &ndash; <kbd>&uarr;</kbd><kbd>&darr;</kbd> byter fr&aring;ga</span>`;
 
   els.totalCount.textContent = String(total);
   els.sheetCount.textContent = String(total);
@@ -319,14 +328,17 @@ function renderSheet() {
           <span class="opt__badge" aria-hidden="true">${letter}<span class="opt__check">&#10003;</span></span>
           <span class="sr-only">Svar ${letter} p&aring; fr&aring;ga ${n}</span>
         </label>`).join('');
+    const answerField = isFreeText()
+      ? `<input class="free-answer" type="text" name="q-${i}" value="${escapeHtml(checked)}"
+           maxlength="200" placeholder="Skriv ditt svar" aria-label="Svar p&aring; fr&aring;ga ${n}">`
+      : `<div class="q__opts" role="radiogroup" aria-label="Fr&aring;ga ${n}">${options}</div>`;
 
     html.push(`
       <li class="q" id="q-${i}" data-index="${i}">
         <div class="q__head">
           <span class="q__num">${n}</span>
         </div>
-        <div class="q__opts" role="radiogroup" aria-label="Fr&aring;ga ${n}">${options}
-        </div>
+        ${answerField}
       </li>`);
   }
 
@@ -362,6 +374,23 @@ els.questions.addEventListener('change', (e) => {
   if (!card) return;
   const idx = Number(card.dataset.index);
   state.answers[idx] = input.value;
+  delete state.correctAnswers[idx];
+  state.score = correctCount();
+  state.current = idx;
+  paintCurrent();
+  updateProgress();
+  save();
+});
+
+els.questions.addEventListener('input', (e) => {
+  const input = e.target.closest('.free-answer');
+  if (!input) return;
+  const card = input.closest('.q');
+  if (!card) return;
+  const idx = Number(card.dataset.index);
+  const value = input.value.trim();
+  if (value) state.answers[idx] = value.slice(0, 200);
+  else delete state.answers[idx];
   delete state.correctAnswers[idx];
   state.score = correctCount();
   state.current = idx;

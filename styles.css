@@ -613,7 +613,7 @@ kbd {
 }
 
 .q.is-done { background: rgba(255, 166, 0, 0.08); border-color: rgba(255, 166, 0, 0.32); }
-.q.is-done .q__num { background: linear-gradient(135deg, var(--brand-light), var(--brand)); color: var(--brand-ink); }
+.q.is-done .q__num { background: linear-gradient(135deg, var(--brand-light), var(--brand)); color: #000; }
 .q.is-done.is-current { border-color: rgba(255, 166, 0, 0.65); }
 
 .q__head {
@@ -630,20 +630,41 @@ kbd {
   height: 44px;
   font-family: var(--font-display);
   font-size: 1.05rem;
-  color: var(--text);
+  color: #000;
   background: rgba(249, 247, 244, 0.09);
   border: 1px solid var(--line);
   border-radius: 14px;
   transition: background 0.25s, color 0.25s, border-color 0.25s;
 }
 
-.q.is-current .q__num { border-color: rgba(255, 166, 0, 0.5); color: var(--brand-light); }
+.q.is-current .q__num {
+  color: #000;
+  background: linear-gradient(135deg, var(--brand-light), var(--brand));
+  border-color: var(--brand);
+}
 
 .q__opts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
   gap: 10px;
   flex: 1;
+}
+
+.free-answer {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--text);
+  background: rgba(10, 9, 8, 0.5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.free-answer:focus-visible {
+  outline: 3px solid var(--brand-light);
+  outline-offset: 2px;
+  border-color: var(--brand);
 }
 
 .opt {

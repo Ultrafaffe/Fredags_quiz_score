@@ -43,7 +43,7 @@
                  placeholder="t.ex. Anna" autocomplete="name" spellcheck="false">
         </div>
 
-        <div class="field">
+        <div class="field" id="answer-count-field">
           <label class="field__label" for="answer-count">Antal svarsalternativ</label>
           <input class="input" type="number" id="answer-count" name="answer-count"
                  value="4" min="1" max="10" step="1" inputmode="numeric">
@@ -55,6 +55,7 @@
             <select class="input select-wrap__select" id="answer-design" name="answer-design">
               <option value="letters">A, B, C ...</option>
               <option value="numbers">1, 2, 3 ...</option>
+              <option value="text">Fritext</option>
             </select>
           </div>
         </div>
