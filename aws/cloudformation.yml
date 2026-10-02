@@ -1,0 +1,239 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Fredagsquiz - statisk webbplats i S3 bakom CloudFront.
+  Deploya i eu-north-1 (eller us-east-1 om du vill anvanda egen doman med ACM-certifikat).
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: FredagsQuiz
+    Description: Namnprefix for alla resurser (gemener, bokstaver och siffror).
+
+  DomainName:
+    Type: String
+    Default: ""
+    Description: >
+      Valfritt eget doman, t.ex. quiz.example.se. Lämna tomt for att anvanda
+      CloudFront's defaultdoman (d2xxxx.cloudfront.net).
+
+  HostedZoneId:
+    Type: String
+    Default: ""
+    Description: Route 53 hosted zone-id. Krävs endast om DomainName anges.
+
+  PriceClass:
+    Type: String
+    Default: PriceClass_100
+    AllowedValues:
+      - PriceClass_100
+      - PriceClass_200
+      - PriceClass_All
+    Description: 100 = Europa + Amerika (rast for svenska anvandare).
+
+Conditions:
+  UseCustomDomain: !Not [!Equals [!Ref DomainName, ""]]
+
+Resources:
+
+  # ---------- S3-bucketen (allt innehåll, alltid privat) ----------
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub "${ProjectName}-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortaIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: OldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-oac"
+        Description: Lat CloudFront lasa bucketen utan publik internetaccess.
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${Bucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+
+  # ---------- CloudFront ----------
+
+  ResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub "${ProjectName}-security-headers"
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: >-
+              default-src 'self'; img-src 'self' data:; style-src 'self' https://fonts.googleapis.com;
+              font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self';
+              frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+            Override: true
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: BucketPolicy
+    Properties:
+      DistributionConfig:
+        Comment: !Sub "Fredagsquiz ${ProjectName}"
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: !Ref PriceClass
+        Compress: true
+        HttpErrorPage401: /index.html
+        HttpErrorPage403: /index.html
+        HttpErrorPage404: /index.html
+        ErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 60
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 60
+        Origins:
+          - Id: s3-origin
+            DomainName: !GetAtt Bucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+        DefaultCacheBehavior:
+          TargetOriginId: s3-origin
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+        CacheBehaviors:
+          # HTML ska alltid valideras mot servern, annars fastnar gamla versioner
+          - PathPattern: "*.html"
+            TargetOriginId: s3-origin
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachedMethods: [GET, HEAD]
+            ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+          # Loggar och assets kan cachas lange
+          - PathPattern: "*.*"
+            TargetOriginId: s3-origin
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachedMethods: [GET, HEAD]
+            ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+        Aliases: !If
+          - UseCustomDomain
+          - [!Ref DomainName]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - UseCustomDomain
+          - AcmCertificateArn: !Ref Certificate
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
+
+  # ---------- Valfritt eget doman ----------
+  # Observera: ACM-certifikat for CloudFront maste ligga i us-east-1.
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: UseCustomDomain
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      SubjectAlternativeNames:
+        - !Ref DomainName
+
+  DnsRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: UseCustomDomain
+    Properties:
+      HostedZoneId: !If
+        - UseCustomDomain
+        - !Ref HostedZoneId
+        - !Ref AWS::NoValue
+      RecordSets:
+        - Name: !Ref DomainName
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt Distribution.DomainName
+            HostedZoneId: !GetAtt Distribution.HostedZoneId
+            EvaluateTargetHealth: false
+
+Outputs:
+  BucketName:
+    Description: S3-bucketen som innehaller sidan (anvands av deploy.ps1).
+    Value: !Ref Bucket
+
+  DistributionId:
+    Description: CloudFront-distributionens id (anvands for invalidation).
+    Value: !Ref Distribution
+
+  WebsiteUrl:
+    Description: URL till sidan.
+    Value: !If
+      - UseCustomDomain
+      - !Sub "https://${DomainName}"
+      - !Sub "https://${Distribution.DomainName}"
+
+  BucketWebsiteUrl:
+    Description: >
+      Direktadress mot S3 (endast for felsokning - anvand alltid WebsiteUrl).
+    Value: !Sub "http://${Bucket.RegionalDomainName}"
