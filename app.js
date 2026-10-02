@@ -523,7 +523,7 @@ function renderSummary() {
       <li class="${empty ? 'ag--empty' : ''}${state.correctAnswers[i] ? ' ag--correct' : ''}"
           ${empty ? '' : `data-correct-index="${i}" role="button" tabindex="0" aria-pressed="${Boolean(state.correctAnswers[i])}"`}>
         <span class="ag__num">${i + 1}.</span>
-        <span class="ag__letter">${letter ?? '–'}</span>
+        <span class="ag__letter${isFreeText() ? ' ag__text' : ''}">${letter ?? '–'}</span>
       </li>`;
   }).join('');
 
