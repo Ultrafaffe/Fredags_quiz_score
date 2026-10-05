@@ -215,6 +215,85 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
   color: var(--muted);
 }
 
+.panel__eyebrow {
+  margin: 0 0 8px;
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.host-code {
+  display: grid;
+  gap: 8px;
+  margin: 32px 0 28px;
+  padding: 24px;
+  text-align: center;
+  border: 1px solid rgba(255, 166, 0, 0.45);
+  border-radius: var(--radius);
+  background: rgba(255, 166, 0, 0.08);
+}
+
+.host-code__label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.host-code__value {
+  color: var(--brand-light);
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 12vw, 5.5rem);
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.host-result {
+  margin-top: 26px;
+  padding: 22px;
+  text-align: center;
+  border: 1px solid rgba(255, 166, 0, 0.45);
+  border-radius: var(--radius);
+  background: rgba(255, 166, 0, 0.08);
+}
+
+.host-result h3,
+.host-result p { margin: 0; }
+
+.host-result h3 {
+  color: var(--brand);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.host-result__list {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+  margin: 12px auto 0;
+  padding: 0;
+  list-style: none;
+}
+
+.host-result__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(249, 247, 244, 0.05);
+}
+
+.host-result__name {
+  overflow-wrap: anywhere;
+}
+
 /* ---------- Formulärfält ---------- */
 
 .setup {
@@ -225,6 +304,75 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 }
 
 .field { display: grid; gap: 8px; }
+
+#game-settings {
+  display: grid;
+  gap: 20px;
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(249, 247, 244, 0.04);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s;
+}
+
+.check-field:hover,
+.check-field:has(input:checked) {
+  border-color: rgba(255, 166, 0, 0.55);
+  background: rgba(255, 166, 0, 0.08);
+}
+
+.check-field input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  appearance: none;
+  border: 1px solid var(--muted);
+  border-radius: 5px;
+  background: rgba(10, 9, 8, 0.5);
+  cursor: pointer;
+}
+
+.check-field input:checked {
+  position: relative;
+  border-color: var(--brand);
+  background: linear-gradient(135deg, var(--brand-light), var(--brand));
+  box-shadow: var(--glow-brand);
+}
+
+.check-field input:checked::after {
+  content: '\2713';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--brand-ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.check-field input:focus-visible {
+  outline: 3px solid var(--brand-light);
+  outline-offset: 2px;
+}
+
+.game-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.game-code-row .btn { white-space: nowrap; }
 
 .field--count { justify-items: center; }
 
@@ -667,6 +815,33 @@ kbd {
   border-color: var(--brand);
 }
 
+.q--elimination {
+  border-color: rgba(255, 166, 0, 0.45);
+  background: rgba(255, 166, 0, 0.07);
+}
+
+.q__title {
+  color: var(--brand-light);
+  font-weight: 700;
+}
+
+.elimination-answer {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--text);
+  background: rgba(10, 9, 8, 0.5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.elimination-answer:focus-visible {
+  outline: 3px solid var(--brand-light);
+  outline-offset: 2px;
+  border-color: var(--brand);
+}
+
 .opt {
   position: relative;
   cursor: pointer;
@@ -902,6 +1077,11 @@ kbd {
   outline-offset: 2px;
 }
 
+.elimination-summary {
+  width: min(100%, 340px);
+  margin: 26px auto 0;
+}
+
 .summary__note {
   margin: 22px 0 0;
   text-align: center;
@@ -956,6 +1136,8 @@ kbd {
   .opt__badge { min-height: 52px; font-size: 1.25rem; padding: 6px 4px; }
   .toolbar { justify-content: stretch; }
   .toolbar__count { margin-left: auto; }
+  .game-code-row { grid-template-columns: 1fr; }
+  .game-code-row .btn { width: 100%; }
   .actions { flex-direction: column-reverse; align-items: stretch; }
   .actions .btn { width: 100%; }
   .score { gap: 12px; }

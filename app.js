@@ -1,5 +1,5 @@
 /* =========================================================
-   Fredagsquiz · Svarsformulär
+   Quiz · Svarsformulär
   Enbart svarsval
    ========================================================= */
 
@@ -10,21 +10,40 @@ const MIN_ANSWER_COUNT = 1;
 const MAX_ANSWER_COUNT = 10;
 const MIN_COUNT = 1;
 const MAX_COUNT = 100;
-const STORAGE_KEY = 'fredagsquiz.svarsformular.v1';
+const STORAGE_KEY = 'quiz.svarsformular.v1';
+const API_BASE_URL = 'https://cmsp9si3j7.execute-api.eu-north-1.amazonaws.com';
+const PLAYER_ID_KEY = 'quiz.player-id.v1';
 
 const $ = (sel) => document.querySelector(sel);
 
 const els = {
   views: {
     setup: $('#view-setup'),
+    host: $('#view-host'),
     sheet: $('#view-sheet'),
     summary: $('#view-summary'),
   },
   setupForm: $('#setup-form'),
   name: $('#name'),
+  gameCode: $('#game-code'),
+  gameCodeLabel: $('#game-code-label'),
+  gameCodeRow: $('#game-code-row'),
+  gameCodeStatus: $('#game-code-status'),
+  createGame: $('#create-game'),
+  joinGame: $('#join-game'),
+  gameSettings: $('#game-settings'),
+  startActions: $('#start-actions'),
+  cancelCreate: $('#cancel-create'),
+  hostGameCode: $('#host-game-code'),
+  copyGameCode: $('#copy-game-code'),
+  endGame: $('#end-game'),
+  hostNewGame: $('#host-new-game'),
+  hostStatus: $('#host-status'),
+  hostResult: $('#host-result'),
   answerCountField: $('#answer-count-field'),
   answerCount: $('#answer-count'),
   answerDesign: $('#answer-design'),
+  eliminationQuestion: $('#elimination-question'),
   count: $('#count'),
   countHint: $('#count-hint'),
   chips: [...document.querySelectorAll('.chip')],
@@ -49,10 +68,13 @@ const els = {
   submitAnswers: $('#submit-answers'),
   summaryMeta: $('#summary-meta'),
   answerGrid: $('#answergrid'),
+  eliminationSummary: $('#elimination-summary'),
   summaryNote: $('#summary-note'),
   score: $('#score'),
   scoreMax: $('#score-max'),
   editAnswers: $('#edit-answers'),
+  submitScore: $('#submit-score'),
+  scoreStatus: $('#score-status'),
   restart: $('#restart'),
   toast: $('#toast'),
   confetti: $('#confetti'),
@@ -62,12 +84,19 @@ const state = {
   name: '',
   answerCount: 4,
   answerDesign: 'letters',
+  eliminationQuestion: true,
+  eliminationAnswer: '',
   count: 10,
   answers: {},      // { 0: 'A', 1: 'C', ... }
   correctAnswers: {},
   score: null,      // antal rätta svar, matas in manuellt
+  gameId: '',
+  gameCode: '',
+  playerId: '',
+  scoreSubmitted: false,
+  setupMode: 'initial',   // initial | create | join
   current: 0,       // aktiv fråga för tangentbordsstyrning
-  view: 'setup',    // setup | sheet | summary
+  view: 'setup',    // setup | host | sheet | summary
 };
 
 /* ---------- Lagring ---------- */
@@ -79,6 +108,11 @@ function load() {
     const data = JSON.parse(raw);
     if (typeof data !== 'object' || data === null) return;
     state.name = String(data.name ?? '');
+    state.gameId = String(data.gameId ?? '');
+    state.gameCode = String(data.gameCode ?? '');
+    state.playerId = String(data.playerId ?? '');
+    state.scoreSubmitted = data.scoreSubmitted === true;
+    state.setupMode = ['initial', 'create', 'join'].includes(data.setupMode) ? data.setupMode : 'initial';
     const legacyDesigns = {
       letters4: { answerCount: 4, answerDesign: 'letters' },
       numbers4: { answerCount: 4, answerDesign: 'numbers' },
@@ -87,6 +121,12 @@ function load() {
     const savedDesign = legacyDesigns[data.answerDesign];
     state.answerCount = savedDesign?.answerCount ?? clampAnswerCount(Number(data.answerCount) || 4);
     state.answerDesign = savedDesign?.answerDesign ?? (ANSWER_DESIGNS.includes(data.answerDesign) ? data.answerDesign : 'letters');
+    state.eliminationQuestion = typeof data.eliminationQuestion === 'boolean'
+      ? data.eliminationQuestion
+      : true;
+    state.eliminationAnswer = typeof data.eliminationAnswer === 'string'
+      ? data.eliminationAnswer.slice(0, 200)
+      : '';
     state.count = clampCount(Number(data.count) || MIN_COUNT);
     state.answers = sanitizeAnswers(data.answers);
     state.correctAnswers = sanitizeCorrectAnswers(data.correctAnswers);
@@ -94,7 +134,7 @@ function load() {
       ? Math.min(MAX_COUNT, Math.round(data.score))
       : null;
     state.current = clampIndex(data.current, state.count);
-    state.view = ['setup', 'sheet', 'summary'].includes(data.view) ? data.view : 'setup';
+    state.view = ['setup', 'host', 'sheet', 'summary'].includes(data.view) ? data.view : 'setup';
   } catch {
     /* korrupt sparad data – börja om */
   }
@@ -106,6 +146,97 @@ function save() {
   } catch {
     /* privat läge / fullt lagring – ignoreras tyst */
   }
+}
+
+function getPlayerId() {
+  try {
+    const saved = localStorage.getItem(PLAYER_ID_KEY);
+    if (saved) return saved;
+    const id = crypto.randomUUID ? crypto.randomUUID() : `player-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(PLAYER_ID_KEY, id);
+    return id;
+  } catch {
+    return `player-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const request = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'content-type': 'application/json',
+      ...(options.headers ?? {}),
+    },
+  });
+  const body = await request.json().catch(() => ({}));
+  if (!request.ok) throw new Error(body.error ?? body.message ?? `API-fel ${request.status}`);
+  return body;
+}
+
+async function prepareGame() {
+  const game = await apiRequest('/games', {
+    method: 'POST',
+    body: JSON.stringify(getGameSettings()),
+  });
+
+  applyGameSettings(game, true);
+  state.playerId = state.playerId || getPlayerId();
+  state.scoreSubmitted = false;
+}
+
+function getGameSettings() {
+  return {
+    questionCount: state.count,
+    answerCount: state.answerCount,
+    answerDesign: state.answerDesign,
+    eliminationQuestion: state.eliminationQuestion,
+  };
+}
+
+function applyGameSettings(game, locked) {
+  state.gameId = String(game.gameId);
+  state.gameCode = String(game.gameCode ?? game.gameId);
+  state.answerCount = clampAnswerCount(Number(game.answerCount) || state.answerCount);
+  state.answerDesign = ANSWER_DESIGNS.includes(game.answerDesign)
+    ? game.answerDesign
+    : state.answerDesign;
+  state.eliminationQuestion = game.eliminationQuestion === true;
+  state.count = clampCount(Number(game.questionCount) || state.count);
+  els.gameCode.value = state.gameCode;
+  els.answerCount.value = String(state.answerCount);
+  els.answerDesign.value = state.answerDesign;
+  els.eliminationQuestion.checked = state.eliminationQuestion;
+  els.count.value = String(state.count);
+  els.answerCountField.hidden = isFreeText();
+  if (locked) state.setupMode = 'join';
+  syncSetupMode();
+}
+
+function syncSetupMode() {
+  const creating = state.setupMode === 'create';
+  const joining = state.setupMode === 'join';
+
+  els.gameSettings.hidden = !creating;
+  els.startActions.hidden = !creating;
+  els.gameCodeLabel.hidden = creating;
+  els.gameCodeRow.hidden = creating;
+  els.createGame.hidden = creating;
+  els.joinGame.hidden = creating;
+  els.gameCode.disabled = false;
+
+  const controls = [
+    els.answerCount,
+    els.answerDesign,
+    els.eliminationQuestion,
+    els.count,
+    els.countMinus,
+    els.countPlus,
+    ...els.chips,
+  ];
+  for (const control of controls) control.disabled = !creating;
+  els.gameCodeStatus.textContent = joining
+    ? `Går med i spel ${state.gameCode}. Inställningarna hämtas från spelet.`
+    : els.gameCodeStatus.textContent;
 }
 
 function sanitizeAnswers(raw) {
@@ -206,25 +337,39 @@ function goToQuestion(index) {
 /* ---------- Vybyte ---------- */
 
 function render() {
-  const { setup, sheet, summary } = els.views;
+  const { setup, host, sheet, summary } = els.views;
   setup.hidden = state.view !== 'setup';
+  host.hidden = state.view !== 'host';
   sheet.hidden = state.view !== 'sheet';
   summary.hidden = state.view !== 'summary';
 
   if (state.view === 'setup') {
     els.name.value = state.name;
+    els.gameCode.value = state.gameCode;
     els.answerCountField.hidden = isFreeText();
     els.answerCount.value = String(state.answerCount);
     els.answerDesign.value = state.answerDesign;
+    els.eliminationQuestion.checked = state.eliminationQuestion;
     els.count.value = String(state.count);
+    syncSetupMode();
     syncChips();
-    document.title = 'Fredagsquiz · Svarsformulär';
+    document.title = 'Quiz · Svarsformulär';
   }
 
+  if (state.view === 'host') renderHost();
   if (state.view === 'sheet') renderSheet();
   if (state.view === 'summary') renderSummary();
 
   save();
+}
+
+function renderHost() {
+  els.hostGameCode.textContent = state.gameCode || '-----';
+  els.endGame.disabled = false;
+  els.hostResult.hidden = true;
+  els.hostResult.innerHTML = '';
+  els.hostStatus.textContent = `${state.count} frågor · ${state.answerDesign === 'text' ? 'Fritext' : `${state.answerCount} svarsalternativ`}`;
+  document.title = `Spelkod ${state.gameCode} · Quiz`;
 }
 
 /* ---------- Setup-vy ---------- */
@@ -257,15 +402,147 @@ function readCountInput() {
   setCount(digits === '' ? MIN_COUNT : clampCount(Number(digits)));
 }
 
-els.setupForm.addEventListener('submit', (e) => {
+els.setupForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (state.setupMode !== 'create') return;
   state.name = els.name.value.trim();
   readCountInput();
+
+  const startButton = e.submitter;
+  if (startButton) startButton.disabled = true;
+
+  try {
+    await prepareGame();
+  } catch (error) {
+    toast(`Kunde inte ansluta till spelet: ${error.message}`);
+    if (startButton) startButton.disabled = false;
+    return;
+  }
+
   state.answers = {};
+  state.correctAnswers = {};
+  state.eliminationAnswer = '';
   state.current = 0;
-  state.view = 'sheet';
+  state.view = 'host';
   render();
   scrollToTop();
+  if (startButton) startButton.disabled = false;
+});
+
+els.copyGameCode.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(state.gameCode);
+    els.hostStatus.textContent = 'Spelkoden är kopierad.';
+  } catch {
+    els.hostStatus.textContent = `Spelkod: ${state.gameCode}`;
+  }
+});
+
+els.endGame.addEventListener('click', async () => {
+  if (!state.gameId) return;
+
+  els.endGame.disabled = true;
+  els.hostStatus.textContent = 'Hämtar resultat...';
+
+  try {
+    const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
+    const players = Array.isArray(game.players) ? game.players : [];
+
+    if (players.length === 0) {
+      els.hostResult.hidden = false;
+      els.hostResult.innerHTML = '<h3>Inga resultat ännu</h3><p>Ingen deltagare har sparat sitt resultat.</p>';
+      els.hostStatus.textContent = 'Spelet är avslutat.';
+      return;
+    }
+
+    const topPlayers = players
+      .map((player) => ({
+        name: player.name || 'Deltagare',
+        score: Number(player.score) || 0,
+      }))
+      .sort((first, second) => second.score - first.score)
+      .slice(0, 3);
+
+    els.hostResult.hidden = false;
+    els.hostResult.innerHTML = `
+      <h3>Topplista</h3>
+      <ol class="host-result__list">
+        ${topPlayers.map((player) => `
+          <li>
+            <span class="host-result__name">${escapeHtml(player.name)}</span>
+            <strong>${player.score} av ${state.count}</strong>
+          </li>`).join('')}
+      </ol>`;
+    els.hostStatus.textContent = 'Spelet är avslutat.';
+  } catch (error) {
+    els.hostStatus.textContent = `Kunde inte hämta resultatet: ${error.message}`;
+    els.endGame.disabled = false;
+  }
+});
+
+els.hostNewGame.addEventListener('click', () => {
+  state.gameId = '';
+  state.gameCode = '';
+  state.setupMode = 'initial';
+  state.view = 'setup';
+  els.gameCode.value = '';
+  els.gameCodeStatus.textContent = '';
+  render();
+  scrollToTop();
+});
+
+els.createGame.addEventListener('click', () => {
+  state.setupMode = 'create';
+  state.gameId = '';
+  state.gameCode = '';
+  els.gameCode.value = '';
+  els.gameCodeStatus.textContent = 'Välj inställningar och tryck Starta.';
+  syncSetupMode();
+  save();
+  els.answerCount.focus();
+});
+
+els.cancelCreate.addEventListener('click', () => {
+  state.setupMode = 'initial';
+  state.gameId = '';
+  state.gameCode = '';
+  els.gameCode.value = '';
+  els.gameCodeStatus.textContent = '';
+  syncSetupMode();
+  save();
+  els.name.focus();
+});
+
+els.joinGame.addEventListener('click', async () => {
+  const requestedCode = els.gameCode.value.trim().toUpperCase();
+  if (!requestedCode) {
+    els.gameCodeStatus.textContent = 'Skriv en spelkod först.';
+    els.gameCode.focus();
+    return;
+  }
+
+  els.joinGame.disabled = true;
+  els.gameCodeStatus.textContent = 'Hämtar spelet...';
+
+  try {
+    const game = await apiRequest(`/games/${encodeURIComponent(requestedCode)}`);
+    applyGameSettings(game, true);
+    state.name = els.name.value.trim();
+    state.answers = {};
+    state.correctAnswers = {};
+    state.eliminationAnswer = '';
+    state.current = 0;
+    state.score = null;
+    state.scoreSubmitted = false;
+    state.view = 'sheet';
+    render();
+    scrollToTop();
+  } catch (error) {
+    els.gameCodeStatus.textContent = `Kunde inte hitta spelet: ${error.message}`;
+    toast(`Kunde inte hitta spelet: ${error.message}`);
+  } finally {
+    els.joinGame.disabled = false;
+  }
 });
 
 function resetAnswersForOptionChange() {
@@ -284,6 +561,11 @@ els.answerDesign.addEventListener('change', () => {
   state.answerDesign = ANSWER_DESIGNS.includes(els.answerDesign.value) ? els.answerDesign.value : 'letters';
   resetAnswersForOptionChange();
   els.answerCountField.hidden = isFreeText();
+});
+
+els.eliminationQuestion.addEventListener('change', () => {
+  state.eliminationQuestion = els.eliminationQuestion.checked;
+  save();
 });
 
 els.count.addEventListener('input', readCountInput);
@@ -342,10 +624,22 @@ function renderSheet() {
       </li>`);
   }
 
+  if (state.eliminationQuestion) {
+    html.push(`
+      <li class="q q--elimination">
+        <div class="q__head">
+          <span class="q__num">*</span>
+          <span class="q__title">Utslagsfråga</span>
+        </div>
+        <input class="elimination-answer" type="text" value="${escapeHtml(state.eliminationAnswer)}"
+               maxlength="200" placeholder="Skriv ditt utslagssvar" aria-label="Svar på utslagsfråga">
+      </li>`);
+  }
+
   els.questions.innerHTML = html.join('');
   updateProgress();
   paintCurrent();
-  document.title = `${answeredCount()}/${total} besvarade · Fredagsquiz`;
+  document.title = `${answeredCount()}/${total} besvarade · Quiz`;
 }
 
 function updateProgress() {
@@ -355,7 +649,7 @@ function updateProgress() {
   els.progress.setAttribute('aria-valuenow', String(pct));
   els.answeredCount.textContent = String(done);
   els.progress.setAttribute('aria-label', `${done} av ${state.count} besvarade`);
-  document.title = `${done}/${state.count} besvarade · Fredagsquiz`;
+  document.title = `${done}/${state.count} besvarade · Quiz`;
 }
 
 function paintCurrent() {
@@ -383,6 +677,14 @@ els.questions.addEventListener('change', (e) => {
 });
 
 els.questions.addEventListener('input', (e) => {
+  const eliminationInput = e.target.closest('.elimination-answer');
+  if (eliminationInput) {
+    state.eliminationAnswer = eliminationInput.value.trim().slice(0, 200);
+    state.scoreSubmitted = false;
+    save();
+    return;
+  }
+
   const input = e.target.closest('.free-answer');
   if (!input) return;
   const card = input.closest('.q');
@@ -493,6 +795,32 @@ els.sendAnyway.addEventListener('click', () => {
   finish();
 });
 
+els.submitScore.addEventListener('click', async () => {
+  if (state.scoreSubmitted || !state.gameId) return;
+
+  els.submitScore.disabled = true;
+  els.scoreStatus.textContent = 'Sparar resultat...';
+
+  try {
+    await apiRequest(`/games/${encodeURIComponent(state.gameId)}/scores`, {
+      method: 'POST',
+      body: JSON.stringify({
+        playerId: state.playerId || getPlayerId(),
+        name: displayName(),
+        score: state.score,
+        eliminationAnswer: state.eliminationAnswer,
+      }),
+    });
+    state.scoreSubmitted = true;
+    renderSummary();
+    save();
+    toast('Resultatet är sparat');
+  } catch (error) {
+    els.scoreStatus.textContent = `Kunde inte spara resultatet: ${error.message}`;
+    els.submitScore.disabled = false;
+  }
+});
+
 function finish() {
   state.view = 'summary';
   render();
@@ -506,6 +834,7 @@ function renderSummary() {
   const done = answeredCount();
   const items = [
     ['Deltagare', displayName()],
+    ['Spelkod', state.gameCode || '–'],
     ['Antal frågor', String(state.count)],
     ['Besvarade', `${done} av ${state.count}`],
   ];
@@ -527,17 +856,24 @@ function renderSummary() {
       </li>`;
   }).join('');
 
+  els.eliminationSummary.hidden = !state.eliminationQuestion;
+  els.eliminationSummary.innerHTML = state.eliminationQuestion
+    ? `<li><span class="ag__num">Utslagsfråga.</span><span class="ag__letter ag__text">${escapeHtml(state.eliminationAnswer || '–')}</span></li>`
+    : '';
+
   const missing = state.count - done;
   els.summaryNote.textContent = missing > 0
     ? `${missing} frågor lämnades tomma.`
     : '';
 
-  document.title = 'Svar inskickade · Fredagsquiz';
+  document.title = 'Svar inskickade · Quiz';
 
   /* Antal rätt räknas från markerade frågor */
   els.scoreMax.textContent = String(state.count);
   state.score = correctCount();
   els.score.value = String(state.score);
+  els.submitScore.disabled = state.scoreSubmitted || !state.gameId;
+  els.scoreStatus.textContent = state.scoreSubmitted ? 'Resultatet är sparat.' : '';
 }
 
 els.answerGrid.addEventListener('click', (e) => {
@@ -547,6 +883,7 @@ els.answerGrid.addEventListener('click', (e) => {
   if (state.correctAnswers[idx]) delete state.correctAnswers[idx];
   else state.correctAnswers[idx] = true;
   state.score = correctCount();
+  state.scoreSubmitted = false;
   renderSummary();
   save();
 });
@@ -570,9 +907,15 @@ els.restart.addEventListener('click', () => {
   state.name = '';
   state.answerCount = 4;
   state.answerDesign = 'letters';
+  state.eliminationQuestion = true;
+  state.eliminationAnswer = '';
   state.answers = {};
   state.correctAnswers = {};
   state.score = null;
+  state.gameId = '';
+  state.gameCode = '';
+  state.setupMode = 'initial';
+  state.scoreSubmitted = false;
   state.current = 0;
   state.count = 10;
   state.view = 'setup';

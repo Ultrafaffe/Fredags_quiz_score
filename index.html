@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fredagsquiz &middot; Svarsformulär</title>
-  <meta name="description" content="Svarsformulär för Fredagsquiz.">
+  <title>Quiz &middot; Svarsformulär</title>
+  <meta name="description" content="Svarsformulär för Quiz.">
   <meta name="theme-color" content="#0d0720">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#10067;</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,7 +25,7 @@
     <div class="brand">
       <span class="brand__glass" aria-hidden="true">&#10067;</span>
       <span class="brand__text">
-        <span class="brand__name">Fredagsquiz</span>
+        <span class="brand__name">Quiz</span>
       </span>
       <span class="brand__glass" aria-hidden="true">&#10067;</span>
     </div>
@@ -43,47 +43,95 @@
                  placeholder="t.ex. Anna" autocomplete="name" spellcheck="false">
         </div>
 
-        <div class="field" id="answer-count-field">
-          <label class="field__label" for="answer-count">Antal svarsalternativ</label>
-          <input class="input" type="number" id="answer-count" name="answer-count"
-                 value="4" min="1" max="10" step="1" inputmode="numeric">
-        </div>
-
         <div class="field">
-          <label class="field__label" for="answer-design">Svarsdesign</label>
-          <div class="select-wrap">
-            <select class="input select-wrap__select" id="answer-design" name="answer-design">
-              <option value="letters">A, B, C ...</option>
-              <option value="numbers">1, 2, 3 ...</option>
-              <option value="text">Fritext</option>
-            </select>
+          <label class="field__label" id="game-code-label" for="game-code">Spelkod</label>
+          <div class="game-code-row" id="game-code-row">
+            <input class="input" type="text" id="game-code" name="game-code" maxlength="5"
+                   placeholder="Skriv kod f&ouml;r att g&aring; med" autocomplete="off" spellcheck="false">
+            <button class="btn btn--primary btn--lg" type="button" id="create-game">
+              Skapa nytt spel
+            </button>
+            <button class="btn btn--primary btn--lg" type="button" id="join-game">
+              G&aring; med
+            </button>
+          </div>
+          <p class="field__hint" id="game-code-status" aria-live="polite"></p>
+        </div>
+
+        <div id="game-settings" hidden>
+          <div class="field" id="answer-count-field">
+            <label class="field__label" for="answer-count">Antal svarsalternativ</label>
+            <input class="input" type="number" id="answer-count" name="answer-count"
+                   value="4" min="1" max="10" step="1" inputmode="numeric">
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="answer-design">Svarsdesign</label>
+            <div class="select-wrap">
+              <select class="input select-wrap__select" id="answer-design" name="answer-design">
+                <option value="letters">A, B, C ...</option>
+                <option value="numbers">1, 2, 3 ...</option>
+                <option value="text">Fritext</option>
+              </select>
+            </div>
+          </div>
+
+          <label class="check-field" for="elimination-question">
+            <input type="checkbox" id="elimination-question" name="elimination-question" checked>
+            <span>Ha med utslagsfråga</span>
+          </label>
+
+          <div class="field field--count">
+            <span class="field__label" id="count-label">Antal fr&aring;gor</span>
+            <div class="counter">
+              <button class="counter__btn" type="button" id="count-minus" aria-label="Minska antal fr&aring;gor">&minus;</button>
+              <input class="counter__value" type="text" inputmode="numeric" id="count" name="count"
+                     value="10" aria-labelledby="count-label" aria-describedby="count-hint">
+              <button class="counter__btn" type="button" id="count-plus" aria-label="&Ouml;ka antal fr&aring;gor">+</button>
+            </div>
+            <p class="field__hint" id="count-hint"></p>
+            <div class="chips" role="group" aria-label="Snabbval antal fr&aring;gor">
+              <button class="chip" type="button" data-count="5">5</button>
+              <button class="chip" type="button" data-count="10">10</button>
+              <button class="chip" type="button" data-count="15">15</button>
+              <button class="chip" type="button" data-count="20">20</button>
+              <button class="chip" type="button" data-count="25">25</button>
+              <button class="chip" type="button" data-count="30">30</button>
+              <button class="chip" type="button" data-count="50">50</button>
+            </div>
           </div>
         </div>
 
-        <div class="field field--count">
-          <span class="field__label" id="count-label">Antal fr&aring;gor</span>
-          <div class="counter">
-            <button class="counter__btn" type="button" id="count-minus" aria-label="Minska antal fr&aring;gor">&minus;</button>
-            <input class="counter__value" type="text" inputmode="numeric" id="count" name="count"
-                   value="10" aria-labelledby="count-label" aria-describedby="count-hint">
-            <button class="counter__btn" type="button" id="count-plus" aria-label="&Ouml;ka antal fr&aring;gor">+</button>
-          </div>
-          <p class="field__hint" id="count-hint"></p>
-          <div class="chips" role="group" aria-label="Snabbval antal fr&aring;gor">
-            <button class="chip" type="button" data-count="5">5</button>
-            <button class="chip" type="button" data-count="10">10</button>
-            <button class="chip" type="button" data-count="15">15</button>
-            <button class="chip" type="button" data-count="20">20</button>
-            <button class="chip" type="button" data-count="25">25</button>
-            <button class="chip" type="button" data-count="30">30</button>
-            <button class="chip" type="button" data-count="50">50</button>
-          </div>
+        <div class="actions actions--wrap" id="start-actions" hidden>
+          <button class="btn btn--ghost btn--lg" type="button" id="cancel-create">
+            Avbryt
+          </button>
+          <button class="btn btn--primary btn--lg" type="submit">
+            Starta
+          </button>
         </div>
-
-        <button class="btn btn--primary btn--lg" type="submit">
-          Starta
-        </button>
       </form>
+    </section>
+
+    <!-- 2. Värdvy -->
+    <section class="panel panel--host" id="view-host" aria-labelledby="host-title" hidden>
+      <p class="panel__eyebrow">Värd för spelet</p>
+      <h2 class="panel__title" id="host-title">Dela spelkoden</h2>
+      <p class="panel__lead">Låt de andra skriva in koden på sina enheter.</p>
+
+      <div class="host-code" aria-live="polite">
+        <span class="host-code__label">Spelkod</span>
+        <strong class="host-code__value" id="host-game-code">-----</strong>
+      </div>
+
+      <div class="actions actions--wrap">
+        <button class="btn btn--primary btn--lg" type="button" id="copy-game-code">Kopiera kod</button>
+        <button class="btn btn--ghost btn--lg" type="button" id="end-game">Avsluta spel</button>
+        <button class="btn btn--ghost btn--lg" type="button" id="host-new-game">Nytt spel</button>
+      </div>
+
+      <div class="host-result" id="host-result" hidden></div>
+      <p class="summary__note" id="host-status"></p>
     </section>
 
     <!-- 2. Svarsformulär -->
@@ -149,6 +197,7 @@
 
       <h3 class="summary__subtitle">Dina svar - klicka f&ouml;r att r&auml;tta</h3>
       <ol class="answergrid" id="answergrid"></ol>
+      <ol class="answergrid elimination-summary" id="elimination-summary" hidden></ol>
 
       <div class="score">
         <label class="score__label" for="score">Antal r&auml;tt</label>
@@ -161,10 +210,12 @@
 
       <div class="actions actions--wrap">
         <button class="btn btn--ghost" type="button" id="edit-answers">Redigera svar</button>
-        <button class="btn btn--quiet" type="button" id="restart">Nytt formul&auml;r</button>
+        <button class="btn btn--primary" type="button" id="submit-score">Spara resultat</button>
+        <button class="btn btn--quiet" type="button" id="restart">Nytt spel</button>
       </div>
 
       <p class="summary__note" id="summary-note"></p>
+      <p class="summary__note" id="score-status"></p>
     </section>
 
   </main>
