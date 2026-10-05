@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Quiz &middot; Svarsformulär</title>
-  <meta name="description" content="Svarsformulär för Quiz.">
+  <title>Fredagsquiz &middot; Svarsformulär</title>
+  <meta name="description" content="Svarsformulär för Fredagsquiz.">
   <meta name="theme-color" content="#0d0720">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#10067;</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,7 +25,7 @@
     <div class="brand">
       <span class="brand__glass" aria-hidden="true">&#10067;</span>
       <span class="brand__text">
-        <span class="brand__name">Quiz</span>
+        <span class="brand__name">Fredagsquiz</span>
       </span>
       <span class="brand__glass" aria-hidden="true">&#10067;</span>
     </div>
@@ -36,11 +36,11 @@
     <!-- 1. Uppstart -->
     <section class="panel panel--setup" id="view-setup" aria-labelledby="setup-title">
 
-      <form class="setup" id="setup-form" novalidate>
+      <form class="setup" id="setup-form">
         <div class="field">
           <label class="field__label" for="name">Namn</label>
           <input class="input" type="text" id="name" name="name" maxlength="40"
-                 placeholder="t.ex. Anna" autocomplete="name" spellcheck="false">
+                 placeholder="t.ex. Anna" autocomplete="name" spellcheck="false" required>
         </div>
 
         <div class="field">
@@ -57,6 +57,7 @@
           </div>
           <p class="field__hint" id="game-code-status" aria-live="polite"></p>
         </div>
+        <div class="host-result" id="closed-game-result" hidden></div>
 
         <div id="game-settings" hidden>
           <div class="field" id="answer-count-field">
@@ -115,18 +116,20 @@
 
     <!-- 2. Värdvy -->
     <section class="panel panel--host" id="view-host" aria-labelledby="host-title" hidden>
-      <p class="panel__eyebrow">Värd för spelet</p>
-      <h2 class="panel__title" id="host-title">Dela spelkoden</h2>
-      <p class="panel__lead">Låt de andra skriva in koden på sina enheter.</p>
+      <div class="panel__intro">
+        <p class="panel__eyebrow">Värd för spelet</p>
+        <h2 class="panel__title" id="host-title">Dela spelkoden</h2>
+        <p class="panel__lead" id="host-lead">Låt de andra skriva in koden på sina enheter.</p>
+      </div>
 
       <div class="host-code" aria-live="polite">
         <span class="host-code__label">Spelkod</span>
         <strong class="host-code__value" id="host-game-code">-----</strong>
       </div>
 
-      <div class="actions actions--wrap">
-        <button class="btn btn--primary btn--lg" type="button" id="copy-game-code">Kopiera kod</button>
-        <button class="btn btn--ghost btn--lg" type="button" id="end-game">Avsluta spel</button>
+      <div class="actions actions--wrap host-actions">
+        <button class="btn btn--primary btn--lg host-actions__copy" type="button" id="copy-game-code">Kopiera kod</button>
+        <button class="btn btn--ghost btn--lg host-actions__end" type="button" id="end-game">Avsluta spel</button>
         <button class="btn btn--ghost btn--lg" type="button" id="host-new-game">Nytt spel</button>
       </div>
 

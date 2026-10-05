@@ -140,13 +140,6 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
   font-size: 44px;
   line-height: 1;
   filter: drop-shadow(0 6px 14px rgba(255, 166, 0, 0.3));
-  animation: clink 4.5s ease-in-out infinite;
-}
-
-@keyframes clink {
-  0%, 78%, 100% { transform: rotate(-6deg) translateY(0); }
-  84%           { transform: rotate(8deg) translateY(-4px); }
-  90%           { transform: rotate(-3deg) translateY(0); }
 }
 
 .brand__text { display: grid; text-align: left; }
@@ -251,9 +244,20 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
   line-height: 1;
 }
 
+/* ---------- Topplista ---------- */
+
 .host-result {
+  /* All storlek i toplistan styrs härifrån. Variablerna skrivs över när
+     spelet är avslutat och spelkoden/kopiera-knappen har gått ur bilden. */
+  --rb-gap: 12px;
+  --rb-width: 560px;
+  --rb-rank: clamp(40px, 9vw, 54px);
+  --rb-name: clamp(1.15rem, 3.6vw, 1.6rem);
+  --rb-score: clamp(1.2rem, 4.2vw, 1.95rem);
+  --rb-tie: clamp(0.95rem, 2.6vw, 1.1rem);
+
   margin-top: 26px;
-  padding: 22px;
+  padding: clamp(20px, 4vw, 30px);
   text-align: center;
   border: 1px solid rgba(255, 166, 0, 0.45);
   border-radius: var(--radius);
@@ -272,26 +276,138 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 
 .host-result__list {
   display: grid;
-  gap: 8px;
-  max-width: 360px;
-  margin: 12px auto 0;
+  gap: var(--rb-gap);
+  max-width: var(--rb-width);
+  margin: 16px auto 0;
   padding: 0;
   list-style: none;
 }
 
-.host-result__list li {
-  display: flex;
+.host-result__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px 12px;
+  gap: clamp(12px, 3vw, 20px);
+  padding: clamp(11px, 2.4vw, 16px) clamp(13px, 2.6vw, 20px);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: rgba(249, 247, 244, 0.05);
+  text-align: left;
+}
+
+/* Första platsen lyfts ut ur listan */
+.host-result__item--1 {
+  border-color: rgba(255, 166, 0, 0.55);
+  background: linear-gradient(135deg, rgba(255, 166, 0, 0.22), rgba(255, 166, 0, 0.05) 72%);
+  box-shadow: 0 10px 30px rgba(255, 166, 0, 0.16);
+}
+
+/* Platssiffra i guld/silver/brons */
+.host-result__rank {
+  display: grid;
+  place-items: center;
+  width: var(--rb-rank);
+  height: var(--rb-rank);
+  border: 1px solid transparent;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: calc(var(--rb-rank) * 0.42);
+  line-height: 1;
+  color: var(--brand-ink);
+  background: rgba(249, 247, 244, 0.14);
+}
+
+.host-result__item--1 .host-result__rank { background: linear-gradient(140deg, var(--brand-light), var(--brand-deep)); }
+.host-result__item--2 .host-result__rank { background: linear-gradient(140deg, #eae6dc, #a9a396); }
+.host-result__item--3 .host-result__rank { background: linear-gradient(140deg, #d89857, #9d6027); }
+
+.host-result__body {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  min-width: 0;
 }
 
 .host-result__name {
+  font-size: var(--rb-name);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
+}
+
+/* Utslagssvaret – ligger kvar under namnet, bara större och tydligare */
+.host-result__tie {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+  padding: 5px 13px;
+  border: 1px solid rgba(255, 166, 0, 0.5);
+  border-radius: 999px;
+  background: rgba(255, 166, 0, 0.16);
+  color: var(--brand-light);
+  font-size: var(--rb-tie);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.host-result__tie-label {
+  color: var(--muted);
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.host-result__score {
+  font-family: var(--font-display);
+  font-size: var(--rb-score);
+  line-height: 1;
+  color: var(--brand-light);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.host-result__of {
+  display: block;
+  margin-top: 7px;
+  font-family: var(--font-body);
+  font-size: 0.4em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* Efter att spelet avslutats försvinner allt som inte längre behövs: rubriken,
+   spelkoden och knapparna. Kvar blir toplistan och "Nytt spel" under den. */
+.panel--host.panel--finished {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel--host.panel--finished .panel__intro,
+.panel--host.panel--finished .host-code,
+.panel--host.panel--finished .host-actions__copy,
+.panel--host.panel--finished .host-actions__end {
+  display: none;
+}
+
+/* Topplistan först, sedan knappen – trots att knappen ligger överst i markupen */
+.panel--host.panel--finished .host-result { order: 1; }
+.panel--host.panel--finished .host-actions { order: 2; }
+
+.panel--host.panel--finished .host-result {
+  --rb-gap: 16px;
+  --rb-width: 720px;
+  --rb-rank: clamp(48px, 11vw, 72px);
+  --rb-name: clamp(1.4rem, 4.6vw, 2.1rem);
+  --rb-score: clamp(1.5rem, 5.4vw, 2.6rem);
+  --rb-tie: clamp(1.05rem, 3.1vw, 1.35rem);
+
+  margin-top: 0;
 }
 
 /* ---------- Formulärfält ---------- */
@@ -957,11 +1073,11 @@ kbd {
 /* ---------- Sammanfattning ---------- */
 
 .summary__badge {
+  display: block;
   font-size: 56px;
   line-height: 1;
-  margin-bottom: 12px;
+  margin: -10px 0 22px;
   filter: drop-shadow(0 10px 20px rgba(255, 166, 0, 0.3));
-  animation: clink 3.4s ease-in-out infinite;
 }
 
 .meta {
@@ -1142,6 +1258,29 @@ kbd {
   .actions .btn { width: 100%; }
   .score { gap: 12px; }
   .score__input { width: 100%; }
+
+  /* Topplistan behöver luft mellan kolumnerna även på lilla skärmar */
+  .host-result {
+    --rb-gap: 10px;
+    --rb-rank: 38px;
+    padding: 16px 12px;
+  }
+  .panel--host.panel--finished .host-result { --rb-rank: 44px; }
+  .host-result__item {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    row-gap: 8px;
+    padding: 12px 13px;
+  }
+  .host-result__rank { grid-row: span 2; align-self: center; }
+  .host-result__score {
+    grid-column: 2;
+    justify-self: start;
+    font-size: 1.6rem;
+    text-align: left;
+  }
+  .host-result__of { display: inline; margin: 0 0 0 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

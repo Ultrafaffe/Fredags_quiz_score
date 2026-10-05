@@ -120,7 +120,8 @@ Resources:
             ContentSecurityPolicy: >-
               default-src 'self'; img-src 'self' data:; style-src 'self' https://fonts.googleapis.com;
               font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self';
-              frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+              frame-ancestors 'none'; base-uri 'self'; form-action 'self';
+              connect-src 'self' https://cmsp9si3j7.execute-api.eu-north-1.amazonaws.com
             Override: true
 
   Distribution:
