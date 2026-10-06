@@ -91,6 +91,7 @@
               <button class="counter__btn" type="button" id="count-plus" aria-label="&Ouml;ka antal fr&aring;gor">+</button>
             </div>
             <p class="field__hint" id="count-hint"></p>
+
             <div class="chips" role="group" aria-label="Snabbval antal fr&aring;gor">
               <button class="chip" type="button" data-count="5">5</button>
               <button class="chip" type="button" data-count="10">10</button>
@@ -100,6 +101,13 @@
               <button class="chip" type="button" data-count="30">30</button>
               <button class="chip" type="button" data-count="50">50</button>
             </div>
+          </div>
+
+          <div class="quiz-entry">
+            <button class="btn btn--ghost" type="button" id="open-quiz-editor">
+              Skapa quiz (valfritt)
+            </button>
+            <p class="field__hint" id="quiz-status" aria-live="polite"></p>
           </div>
         </div>
 
@@ -112,6 +120,75 @@
           </button>
         </div>
       </form>
+    </section>
+
+    <!-- 2b. Quizeditor -->
+    <section class="panel panel--editor" id="view-editor" hidden aria-labelledby="editor-title">
+      <div class="panel__intro">
+        <p class="panel__eyebrow">Quiz &middot; valfritt</p>
+        <h2 class="panel__title" id="editor-title">Skapa quiz</h2>
+        <p class="panel__lead" id="editor-step">Fr&aring;ga 1 av 10</p>
+      </div>
+
+      <div class="editor__progress">
+        <div class="progress" id="editor-progress" role="progressbar" aria-label="Framsteg i quizeditorn"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span class="progress__bar" id="editor-progress-bar"></span>
+        </div>
+      </div>
+
+      <div class="chips editor__chips" id="editor-chips" role="group" aria-label="Fr&aring;ge&ouml;versikt"></div>
+
+      <div class="alert alert--warn" id="editor-storage" hidden>
+        <p class="alert__text">Quizet kan inte sparas i den h&auml;r webbl&auml;saren (t.ex. privat l&auml;ge). Du kan forts&auml;tta skriva, men &auml;ndringarna f&ouml;rvinner n&auml;r du laddar om sidan.</p>
+      </div>
+
+      <div class="editor__body" id="editor-body"></div>
+
+      <div class="alert" id="editor-issues" hidden>
+        <p class="alert__text" id="editor-issues-text"></p>
+        <ul class="editor__issues" id="editor-issues-list"></ul>
+        <div class="alert__actions">
+          <button class="btn btn--primary btn--sm" type="button" id="editor-save-anyway">Spara &auml;nd&aring;</button>
+          <button class="btn btn--ghost btn--sm" type="button" id="editor-issues-close">St&auml;ng</button>
+        </div>
+      </div>
+
+      <div class="editor__tools">
+        <span class="editor__tools-label">Genv&auml;gar</span>
+        <button class="btn btn--ghost btn--sm" type="button" id="quiz-paste">Klistra in</button>
+        <button class="btn btn--ghost btn--sm" type="button" id="quiz-export">Exportera</button>
+        <button class="btn btn--ghost btn--sm" type="button" id="quiz-import">Importera</button>
+        <input type="file" id="quiz-file" accept=".json,application/json">
+        <span class="field__hint">Filen inneh&aring;ller r&auml;tt svar, dela den inte med deltagarna.</span>
+        <p class="field__hint editor__io" id="editor-io" aria-live="polite"></p>
+      </div>
+
+      <div class="actions actions--wrap editor__nav">
+        <button class="btn btn--ghost" type="button" id="editor-cancel">Avbryt</button>
+        <button class="btn btn--ghost" type="button" id="editor-prev">F&ouml;reg&aring;ende</button>
+        <button class="btn btn--primary btn--lg" type="button" id="editor-next">N&auml;sta fr&aring;ga</button>
+      </div>
+    </section>
+
+    <!-- 2c. Presentationsläge -->
+    <section class="present" id="view-present" hidden aria-label="Quiz f&ouml;r projektorn">
+      <div class="present__top">
+        <div class="present__code">
+          <span class="present__label">Spelkod</span>
+          <strong class="present__code-value" id="present-code">-----</strong>
+        </div>
+        <div class="present__counter" id="present-counter">1 / 10</div>
+      </div>
+
+      <div class="present__stage" id="present-stage" aria-live="polite"></div>
+
+      <div class="present__controls" id="present-controls">
+        <button class="btn btn--ghost btn--sm" type="button" id="present-prev">F&ouml;reg&aring;ende</button>
+        <button class="btn btn--ghost btn--sm" type="button" id="present-next">N&auml;sta</button>
+        <button class="btn btn--ghost btn--sm" type="button" id="present-full">Helsk&auml;rm</button>
+        <button class="btn btn--ghost btn--sm" type="button" id="present-exit">Avsluta visning</button>
+      </div>
     </section>
 
     <!-- 2. Värdvy -->
@@ -129,6 +206,7 @@
 
       <div class="actions actions--wrap host-actions">
         <button class="btn btn--primary btn--lg host-actions__copy" type="button" id="copy-game-code">Kopiera kod</button>
+        <button class="btn btn--primary btn--lg host-actions__quiz" type="button" id="show-quiz" hidden>Visa quiz</button>
         <button class="btn btn--ghost btn--lg host-actions__end" type="button" id="end-game">Avsluta spel</button>
         <button class="btn btn--ghost btn--lg host-actions__new" type="button" id="host-new-game">Nytt spel</button>
       </div>
@@ -234,6 +312,41 @@
   <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
+  <dialog class="dialog" id="paste-dialog" aria-labelledby="paste-title">
+    <h3 class="dialog__title" id="paste-title">Klistra in quiz</h3>
+    <p class="dialog__hint">
+      L&auml;gg en fr&aring;ga per block. F&ouml;rsta raden &auml;r fr&aring;gan, raderna efter &auml;r svarsalternativ.
+      Markera r&auml;tt svar med <kbd>*</kbd> f&ouml;rst eller sist p&aring; raden. Etiketter som
+      <code>A)</code>, <code>A.</code>, <code>1)</code> och <code>1.</code> tas bort automatiskt.
+      I fritextl&auml;ge skriver du <code>Svar:</code> p&aring; egen rad, och utslagsfr&aring;gan b&ouml;rjar med
+      <code>Utslag:</code>.
+    </p>
+    <pre class="dialog__example">Vad heter Sveriges huvudstad?
+A) Stockholm *
+B) Oslo
+C) K&ouml;penhamn
+D) Helsingfors
+
+Vilken planet &auml;r st&ouml;rst?
+A) Mars
+B) Jupiter *
+C) Venus
+D) Saturnus</pre>
+
+    <label class="field__label" for="paste-text">Klistra in fr&aring;gorna</label>
+    <textarea class="input dialog__area" id="paste-text" maxlength="200000" spellcheck="false"
+              placeholder="Klistra in hela quizet h&auml;r..."></textarea>
+
+    <div class="dialog__preview" id="paste-preview" hidden aria-live="polite"></div>
+
+    <div class="dialog__actions">
+      <button class="btn btn--ghost" type="button" id="paste-cancel">Avbryt</button>
+      <button class="btn btn--ghost" type="button" id="paste-check">F&ouml;rhandsgranska</button>
+      <button class="btn btn--primary" type="button" id="paste-use" disabled>Anv&auml;nd</button>
+    </div>
+  </dialog>
+
+  <script src="quiz.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

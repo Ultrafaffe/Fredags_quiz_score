@@ -19,6 +19,8 @@ const $ = (sel) => document.querySelector(sel);
 const els = {
   views: {
     setup: $('#view-setup'),
+    editor: $('#view-editor'),
+    present: $('#view-present'),
     host: $('#view-host'),
     sheet: $('#view-sheet'),
     summary: $('#view-summary'),
@@ -35,6 +37,9 @@ const els = {
   gameSettings: $('#game-settings'),
   startActions: $('#start-actions'),
   cancelCreate: $('#cancel-create'),
+  openQuizEditor: $('#open-quiz-editor'),
+  quizStatus: $('#quiz-status'),
+  showQuiz: $('#show-quiz'),
   hostGameCode: $('#host-game-code'),
   copyGameCode: $('#copy-game-code'),
   endGame: $('#end-game'),
@@ -102,8 +107,15 @@ const state = {
   scoreSubmitted: false,
   setupMode: 'initial',   // initial | create | join
   current: 0,       // aktiv fråga för tangentbordsstyrning
-  view: 'setup',    // setup | host | sheet | summary
+  view: 'setup',    // setup | editor | present | host | sheet | summary
+
+  /* Quiz – skrivs bara i värdens webbläsare, skickas aldrig till API:t */
+  quiz: null,       // { questions: [...], elimination: { text, answer } } eller null
+  present: { index: 0, phase: 'questions' },  // questions | review-intro | review | done
+  editorIndex: 0,   // vilken sida quizeditorn visar (sista = utslagsfrågan)
 };
+
+const defaultPresent = () => ({ index: 0, phase: 'questions' });
 
 /* ---------- Lagring ---------- */
 
@@ -137,6 +149,10 @@ function load() {
       ? data.eliminationAnswer.slice(0, 200)
       : '';
     state.count = clampCount(Number(data.count) || MIN_COUNT);
+    /* Quiz och presentationsläge – saneras med exakt samma regler som import */
+    state.quiz = data.quiz == null ? null : sanitizeLoadedQuiz(data.quiz);
+    state.present = sanitizePresent(data.present);
+    state.editorIndex = clampEditorIndex(data.editorIndex, state.count);
     state.answers = sanitizeAnswers(data.answers);
     state.correctAnswers = sanitizeCorrectAnswers(data.correctAnswers);
     state.wrongAnswers = sanitizeCorrectAnswers(data.wrongAnswers);
@@ -144,7 +160,13 @@ function load() {
       ? Math.min(MAX_COUNT, Math.round(data.score))
       : null;
     state.current = clampIndex(data.current, state.count);
-    state.view = ['setup', 'host', 'sheet', 'summary'].includes(data.view) ? data.view : 'setup';
+    state.view = ['setup', 'editor', 'present', 'host', 'sheet', 'summary'].includes(data.view)
+      ? data.view
+      : 'setup';
+    /* Utan quiz finns inget att redigera eller visa */
+    if (state.view === 'editor' && !state.quiz) state.view = 'setup';
+    if (state.view === 'present' && !state.quiz) state.view = state.gameId ? 'host' : 'setup';
+    if (state.view === 'editor') state.setupMode = 'create';
   } catch {
     /* korrupt sparad data – börja om */
   }
@@ -153,9 +175,47 @@ function load() {
 function save() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
   } catch {
     /* privat läge / fullt lagring – ignoreras tyst */
+    return false;
   }
+}
+
+/* ---------- Quiz – sanering vid inläsning ---------- */
+
+function sanitizeLoadedQuiz(raw) {
+  if (typeof Quiz === 'undefined' || !Quiz.sanitizeQuiz) return null;
+  return Quiz.sanitizeQuiz(raw, {
+    count: state.count,
+    answerCount: state.answerCount,
+    answerDesign: state.answerDesign,
+  });
+}
+
+function sanitizePresent(raw) {
+  const phases = ['questions', 'review-intro', 'review', 'done'];
+  if (typeof raw !== 'object' || raw === null) return defaultPresent();
+  const index = Number(raw.index);
+  return {
+    index: Number.isFinite(index)
+      ? Math.min(state.count, Math.max(0, Math.round(index)))
+      : 0,
+    phase: phases.includes(raw.phase) ? raw.phase : 'questions',
+  };
+}
+
+function clampEditorIndex(i, count) {
+  const max = Math.max(0, count - 1) + (state.eliminationQuestion ? 1 : 0);
+  const n = Number(i);
+  return Number.isFinite(n) ? Math.min(max, Math.max(0, Math.round(n))) : 0;
+}
+
+/* Quizet hör till ett spel – nollställs när ett nytt ska skapas */
+function clearQuiz() {
+  state.quiz = null;
+  state.present = defaultPresent();
+  state.editorIndex = 0;
 }
 
 function getPlayerId() {
@@ -385,8 +445,10 @@ function startPolling(fn, ms = 10000) {
 
 function render() {
   stopPolling();
-  const { setup, host, sheet, summary } = els.views;
+  const { setup, editor, present, host, sheet, summary } = els.views;
   setup.hidden = state.view !== 'setup';
+  editor.hidden = state.view !== 'editor';
+  present.hidden = state.view !== 'present';
   host.hidden = state.view !== 'host';
   sheet.hidden = state.view !== 'sheet';
   summary.hidden = state.view !== 'summary';
@@ -401,9 +463,12 @@ function render() {
     els.count.value = String(state.count);
     syncSetupMode();
     syncChips();
+    if (typeof Quiz !== 'undefined') Quiz.syncSetupStatus();
     document.title = 'Fredagsquiz · Svarsformulär';
   }
 
+  if (state.view === 'editor' && typeof Quiz !== 'undefined') Quiz.renderEditor();
+  if (state.view === 'present' && typeof Quiz !== 'undefined') Quiz.renderPresent();
   if (state.view === 'host') renderHost();
   if (state.view === 'sheet') renderSheet();
   if (state.view === 'summary') renderSummary();
@@ -427,6 +492,8 @@ function setHostStatus(message) {
 function renderHost() {
   els.hostGameCode.textContent = state.gameCode || '-----';
   setHostFinished(state.gameStatus === 'inactive');
+  /* Quizet är valfritt – knappen finns bara om värden skrivit ett */
+  els.showQuiz.hidden = !state.quiz;
   els.hostResult.hidden = true;
   els.hostResult.innerHTML = '';
   setHostStatus(`${state.count} frågor · ${state.answerDesign === 'text' ? 'Fritext' : `${state.answerCount} svarsalternativ`}`);
@@ -529,11 +596,18 @@ function syncChips() {
   }
 }
 
-function setCount(next) {
+function setCount(next, commit = true) {
   state.count = clampCount(next);
   els.count.value = String(state.count);
   syncChips();
+  /* Under inskrivning fylls quizet bara på – först vid ett fastställt
+     värde får det kortas av, annars försvinner frågor mellan två siffror. */
+  let adjusted = false;
+  if (typeof Quiz !== 'undefined') {
+    adjusted = Quiz.adapt({ notify: commit, truncate: commit });
+  }
   save();
+  return adjusted;
 }
 
 function changeCount(delta) {
@@ -541,14 +615,16 @@ function changeCount(delta) {
   if (next === state.count && els.count.value !== String(state.count)) {
     els.count.value = String(state.count);
   }
-  setCount(next);
+  const adjusted = setCount(next);
   if (state.view === 'sheet') renderSheet();
-  toast(state.count === MAX_COUNT ? `Max ${MAX_COUNT} frågor` : `${state.count} frågor`);
+  if (!adjusted) {
+    toast(state.count === MAX_COUNT ? `Max ${MAX_COUNT} frågor` : `${state.count} frågor`);
+  }
 }
 
 function readCountInput() {
   const digits = els.count.value.replace(/\D/g, '');
-  setCount(digits === '' ? MIN_COUNT : clampCount(Number(digits)));
+  setCount(digits === '' ? MIN_COUNT : clampCount(Number(digits)), false);
 }
 
 els.setupForm.addEventListener('submit', async (e) => {
@@ -580,6 +656,9 @@ els.setupForm.addEventListener('submit', async (e) => {
   state.wrongAnswers = {};
   state.eliminationAnswer = '';
   state.current = 0;
+  /* Ett tomt utkast räknas som "utan quiz" – presentationsläget nollställs */
+  if (typeof Quiz !== 'undefined' && !Quiz.hasContent()) state.quiz = null;
+  state.present = defaultPresent();
   state.view = 'host';
   render();
   scrollToTop();
@@ -624,6 +703,7 @@ els.hostNewGame.addEventListener('click', () => {
   state.hostToken = '';
   state.setupMode = 'initial';
   state.view = 'setup';
+  clearQuiz();
   els.gameCode.value = '';
   els.gameCodeStatus.textContent = '';
   els.closedGameResult.hidden = true;
@@ -653,6 +733,7 @@ els.cancelCreate.addEventListener('click', () => {
   state.gameId = '';
   state.gameCode = '';
   state.hostToken = '';
+  clearQuiz();
   els.gameCode.value = '';
   els.gameCodeStatus.textContent = '';
   els.closedGameResult.hidden = true;
@@ -735,12 +816,20 @@ els.answerCount.addEventListener('change', () => {
   state.answerCount = clampAnswerCount(Number(els.answerCount.value));
   els.answerCount.value = String(state.answerCount);
   resetAnswersForOptionChange();
+  if (typeof Quiz !== 'undefined') {
+    Quiz.adapt({ notify: true, truncate: true });
+    save();
+  }
 });
 
 els.answerDesign.addEventListener('change', () => {
   state.answerDesign = ANSWER_DESIGNS.includes(els.answerDesign.value) ? els.answerDesign.value : 'letters';
   resetAnswersForOptionChange();
   els.answerCountField.hidden = isFreeText();
+  if (typeof Quiz !== 'undefined') {
+    Quiz.adapt({ notify: true, truncate: true });
+    save();
+  }
 });
 
 els.eliminationQuestion.addEventListener('change', () => {
@@ -749,6 +838,11 @@ els.eliminationQuestion.addEventListener('change', () => {
 });
 
 els.count.addEventListener('input', readCountInput);
+els.count.addEventListener('change', () => {
+  if (typeof Quiz === 'undefined') return;
+  Quiz.adapt({ notify: true, truncate: true });
+  save();
+});
 els.count.addEventListener('blur', () => { els.count.value = String(state.count); });
 els.count.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); els.setupForm.requestSubmit(); }
@@ -1201,6 +1295,7 @@ els.restart.addEventListener('click', () => {
   state.scoreSubmitted = false;
   scoreRetryPending = false;
   clearPlayerResult();
+  clearQuiz();
   state.current = 0;
   state.count = 10;
   state.view = 'setup';
@@ -1273,6 +1368,16 @@ function celebrate() {
   window.addEventListener('resize', resize, { once: true });
 }
 
+/* ---------- Quiz ---------- */
+
+els.openQuizEditor.addEventListener('click', () => {
+  if (typeof Quiz !== 'undefined') Quiz.openEditor();
+});
+
+els.showQuiz.addEventListener('click', () => {
+  if (typeof Quiz !== 'undefined') Quiz.openPresent();
+});
+
 /* ---------- Start ---------- */
 
 load();
@@ -1280,6 +1385,28 @@ load();
 const preset = countFromUrl();
 if (preset !== null) state.count = preset;
 state.current = clampIndex(state.current, state.count);
+
+/* Quizet följer med från lagringen – fyll på om inställningarna har vuxit */
+Quiz.init({
+  state,
+  els,
+  save,
+  toast,
+  escapeHtml,
+  render,
+  scrollToTop,
+  clampCount,
+  clampAnswerCount,
+  resetAnswers: resetAnswersForOptionChange,
+  limits: {
+    ANSWER_DESIGNS,
+    MIN_COUNT,
+    MAX_COUNT,
+    MIN_ANSWER_COUNT,
+    MAX_ANSWER_COUNT,
+  },
+});
+Quiz.adapt({ notify: false, truncate: false });
 
 render();
 
