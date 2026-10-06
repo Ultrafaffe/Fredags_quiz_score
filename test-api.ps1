@@ -195,6 +195,48 @@ Invoke-ApiExpectingStatus `
     } `
     -ExpectedStatus 400
 
+Write-Host "Testing POST /games validation (expect 400)..." -ForegroundColor Cyan
+
+Invoke-ApiExpectingStatus `
+    -Method "POST" `
+    -Uri "$api/games" `
+    -Body @{ questionCount = 0 } `
+    -ExpectedStatus 400
+
+Invoke-ApiExpectingStatus `
+    -Method "POST" `
+    -Uri "$api/games" `
+    -Body @{ questionCount = 1000000000 } `
+    -ExpectedStatus 400
+
+Invoke-ApiExpectingStatus `
+    -Method "POST" `
+    -Uri "$api/games" `
+    -Body @{ questionCount = 10.5 } `
+    -ExpectedStatus 400
+
+Write-Host "Testing POST /games upper bound and hostName limit..." -ForegroundColor Cyan
+
+$longHostName = [string]::new("V", 60)
+
+$boundedGame = Invoke-Api `
+    -Method "POST" `
+    -Uri "$api/games" `
+    -Body @{
+        questionCount = 100
+        hostName      = $longHostName
+    }
+
+if ([int]$boundedGame.questionCount -ne 100) {
+    throw "questionCount=100 must be accepted (frontend MAX_COUNT is 100) but got $($boundedGame.questionCount)."
+}
+
+if ($boundedGame.hostName.Length -gt 40) {
+    throw "hostName was not limited to 40 characters (got $($boundedGame.hostName.Length))."
+}
+
+Write-Host "questionCount=100 accepted, hostName limited to $($boundedGame.hostName.Length) characters" -ForegroundColor Green
+
 Write-Host "Testing PATCH without host token (expect 403)..." -ForegroundColor Cyan
 
 Invoke-ApiExpectingStatus `
@@ -220,6 +262,30 @@ if ($null -ne $endedGame.hostToken) {
 }
 
 Write-Host "Game ended with host token" -ForegroundColor Green
+
+$firstEndedAt = [string]$endedGame.endedAt
+
+Write-Host "Testing PATCH again on the ended game (expect 200, unchanged endedAt)..." -ForegroundColor Cyan
+
+$repeatPatch = Invoke-Api `
+    -Method "PATCH" `
+    -Uri "$api/games/$gameId" `
+    -Headers @{ "x-host-token" = $game.hostToken } `
+    -Body @{ status = "inactive" }
+
+if ($repeatPatch.status -ne "inactive") {
+    throw "A repeat PATCH must still report the game as inactive."
+}
+
+if ([string]$repeatPatch.endedAt -ne $firstEndedAt) {
+    throw "endedAt changed on a repeat PATCH ($firstEndedAt -> $($repeatPatch.endedAt)). PATCH must be idempotent."
+}
+
+if ($null -ne $repeatPatch.hostToken) {
+    throw "Repeat PATCH response leaked hostToken."
+}
+
+Write-Host "Repeat PATCH is idempotent (endedAt unchanged: $firstEndedAt)" -ForegroundColor Green
 
 Write-Host "Testing GET after ending (expect status=inactive, no token)..." -ForegroundColor Cyan
 

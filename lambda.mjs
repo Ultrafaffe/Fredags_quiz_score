@@ -205,6 +205,18 @@ export const handler = async (event) => {
 
   // POST /games
   if (method === "POST") {
+    /* Någon kan inte skapa hur stort spel som helst – 1..100 frågor.
+       Fältet får utelämnas (då gäller 10 som förut). */
+    const questionCount = body.questionCount === undefined || body.questionCount === null
+      ? 10
+      : Number(body.questionCount);
+
+    if (!Number.isInteger(questionCount) || questionCount < 1 || questionCount > 100) {
+      return response(400, {
+        error: "Ogiltigt antal frågor – måste vara ett heltal mellan 1 och 100"
+      });
+    }
+
     const gameId = createGameCode();
     const hostToken = randomUUID();
 
@@ -212,9 +224,9 @@ export const handler = async (event) => {
       gameId,
       gameCode: gameId,
       hostToken,
-      hostName: String(body.hostName ?? "").trim(),
+      hostName: String(body.hostName ?? "").trim().slice(0, 40),
       status: "active",
-      questionCount: Number(body.questionCount) || 10,
+      questionCount,
       answerCount: Math.min(10, Math.max(1, Number(body.answerCount) || 4)),
       answerDesign: ["letters", "numbers", "text"].includes(body.answerDesign)
         ? body.answerDesign
@@ -253,6 +265,11 @@ export const handler = async (event) => {
       return response(403, {
         error: "Endast värden kan avsluta spelet"
       });
+    }
+
+    /* Idempotent: ett redan avslutat spel ska inte få ett nytt endedAt */
+    if (stored.Item.status === "inactive") {
+      return response(200, publicGame(stored.Item));
     }
 
     try {

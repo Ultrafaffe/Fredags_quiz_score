@@ -470,24 +470,34 @@ async function showHostResult() {
 }
 
 function renderLeaderboard(players, questionCount) {
-  const topPlayers = (Array.isArray(players) ? players : [])
+  const ranked = (Array.isArray(players) ? players : [])
     .map((player) => ({
       name: player.name || 'Deltagare',
       score: Number(player.score) || 0,
       eliminationAnswer: player.eliminationAnswer || '',
     }))
-    .sort((first, second) => second.score - first.score)
-    .slice(0, 3);
+    .sort((first, second) => second.score - first.score);
 
-  if (topPlayers.length === 0) {
+  if (ranked.length === 0) {
     return '<h3>Inga resultat ännu</h3><p>Ingen deltagare har sparat sitt resultat.</p>';
   }
 
-  const highestScore = topPlayers[0].score;
-  const showTieBreakers = topPlayers.filter((player) => player.score === highestScore).length > 1;
+  /* Ta med hela gruppen vid tredje plats – en delad tredjeplassare får inte
+     försvinna tyst. Alla med samma poäng som den tredje raden syns. */
+  const cutoff = ranked[Math.min(2, ranked.length - 1)].score;
+  const topPlayers = ranked.filter((player) => player.score >= cutoff);
+
+  const highestScore = ranked[0].score;
+  const showTieBreakers = ranked.filter((player) => player.score === highestScore).length > 1;
+
+  let previousScore = null;
+  let previousRank = 0;
 
   const rows = topPlayers.map((player, index) => {
-    const rank = index + 1;
+    /* Tävlingsranking: 1, 1, 3 – delade platser får samma platsiffra */
+    const rank = player.score === previousScore ? previousRank : index + 1;
+    previousScore = player.score;
+    previousRank = rank;
     const showElimination = showTieBreakers && player.score === highestScore;
 
     return `
