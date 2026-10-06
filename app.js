@@ -1046,7 +1046,6 @@ function renderSummary() {
   const items = [
     ['Deltagare', displayName()],
     ['Spelkod', state.gameCode || '–'],
-    ['Antal frågor', String(state.count)],
     ['Besvarade', `${done} av ${state.count}`],
   ];
 
