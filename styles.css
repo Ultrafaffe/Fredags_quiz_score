@@ -396,6 +396,9 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 .panel--host.panel--finished .host-actions__end {
   display: none;
 }
+  .panel--host:not(.panel--finished) .host-actions__new {
+  display: none;
+}
 
 /* Topplistan först, sedan knappen – trots att knappen ligger överst i markupen */
 .panel--host.panel--finished .host-result { order: 1; }
@@ -1379,7 +1382,9 @@ kbd {
     text-align: left;
   }
   .host-result__of { display: inline; margin: 0 0 0 6px; }
+
 }
+
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -618,6 +618,7 @@ els.hostNewGame.addEventListener('click', () => {
   els.gameCodeStatus.textContent = '';
   els.closedGameResult.hidden = true;
   els.closedGameResult.innerHTML = '';
+  clearPlayerResult();
   render();
   scrollToTop();
 });
@@ -631,6 +632,7 @@ els.createGame.addEventListener('click', () => {
   els.gameCodeStatus.textContent = 'Välj inställningar och tryck Starta.';
   els.closedGameResult.hidden = true;
   els.closedGameResult.innerHTML = '';
+  clearPlayerResult();
   syncSetupMode();
   save();
   els.answerCount.focus();
@@ -645,6 +647,7 @@ els.cancelCreate.addEventListener('click', () => {
   els.gameCodeStatus.textContent = '';
   els.closedGameResult.hidden = true;
   els.closedGameResult.innerHTML = '';
+  clearPlayerResult();
   syncSetupMode();
   save();
   els.name.focus();
@@ -672,6 +675,8 @@ els.joinGame.addEventListener('click', async () => {
 
   try {
     const game = await apiRequest(`/games/${encodeURIComponent(requestedCode)}`);
+    /* Ny koppling – glöm en eventuell gammal topplista från föregående spel */
+    clearPlayerResult();
 
     if (game.status === 'inactive') {
       state.gameId = String(game.gameId ?? requestedCode);
@@ -991,6 +996,15 @@ async function sendScore() {
     save();
     toast('Resultatet är sparat');
   } catch (error) {
+    /* Spelet hann avslutas innan resultatet sparades (409) – visa slutresultatet direkt */
+    if (error.status === 409) {
+      scoreRetryPending = false;
+      els.submitScore.disabled = true;
+      els.scoreStatus.textContent = 'Spelet avslutades innan resultatet hann sparas.';
+      await showFinalResult();
+      return;
+    }
+
     /* Nätverksfel/timeouts är tillfälliga – 4xx betyder att det aldrig går att spara */
     const permanent = Number.isInteger(error.status) && error.status < 500;
     scoreRetryPending = !permanent;
@@ -1081,6 +1095,29 @@ function renderSummary() {
   watchForResult();
 }
 
+function showPlayerResult(game) {
+  els.playerResult.innerHTML = `<h3>Spelet är avslutat</h3>${renderLeaderboard(game.players, Number(game.questionCount) || state.count)}`;
+  els.playerResult.hidden = false;
+}
+
+function clearPlayerResult() {
+  els.playerResult.hidden = true;
+  els.playerResult.innerHTML = '';
+}
+
+/* Hämta och visa slutresultatet en gång – används när pollingen inte hunnit igång. */
+async function showFinalResult() {
+  if (!state.gameId) return false;
+  try {
+    const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
+    showPlayerResult(game);
+    return true;
+  } catch (error) {
+    els.scoreStatus.textContent = `Spelet är avslutat. Kunde inte hämta slutresultatet: ${error.message}`;
+    return false;
+  }
+}
+
 /* Spelaren väntar in topplistan – polla bara efter att resultatet är sparat. */
 function watchForResult() {
   if (!state.scoreSubmitted || !state.gameId) return;
@@ -1089,8 +1126,7 @@ function watchForResult() {
     const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
     if (game.status !== 'inactive') return false;
 
-    els.playerResult.innerHTML = `<h3>Spelet är avslutat</h3>${renderLeaderboard(game.players, state.count)}`;
-    els.playerResult.hidden = false;
+    showPlayerResult(game);
     return true;
   });
 }
@@ -1155,8 +1191,7 @@ els.restart.addEventListener('click', () => {
   state.setupMode = 'initial';
   state.scoreSubmitted = false;
   scoreRetryPending = false;
-  els.playerResult.hidden = true;
-  els.playerResult.innerHTML = '';
+  clearPlayerResult();
   state.current = 0;
   state.count = 10;
   state.view = 'setup';
