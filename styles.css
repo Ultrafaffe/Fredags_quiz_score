@@ -1258,9 +1258,14 @@ kbd {
 
 .answergrid .ag--correct {
   border-color: rgba(74, 222, 128, 0.55);
-  background: rgba(74, 222, 128, 0.08);
+  background: rgba(74, 222, 128, 0.1);
 }
 .answergrid .ag--correct .ag__num { color: var(--ok); }
+/* Svarsrutan blir grön på samma sätt som den blir röd vid "fel" */
+.answergrid .ag--correct .ag__letter {
+  background: linear-gradient(135deg, #a7f3c4, var(--ok));
+  color: #0f2d1c;
+}
 
 .answergrid .ag--wrong {
   border-color: rgba(248, 113, 113, 0.55);
@@ -1272,13 +1277,14 @@ kbd {
   color: #2b0d0d;
 }
 .answergrid .ag--wrong .ag__text { background: rgba(248, 113, 113, 0.9); color: #2b0d0d; }
+.answergrid .ag--correct .ag__text { background: rgba(74, 222, 128, 0.9); color: #0b2a17; }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px 18px;
-  margin: 16px 0 0;
+  margin: 16px 0 20px;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--muted);
@@ -1452,6 +1458,8 @@ kbd {
   .answergrid .ag--wrong { border-color: #dc2626; background: #fdecec; }
   .answergrid .ag--wrong .ag__letter,
   .answergrid .ag--wrong .ag__text { background: #fca5a5; color: #2b0d0d; }
+  .answergrid .ag--correct .ag__letter,
+  .answergrid .ag--correct .ag__text { background: #86efac; color: #14532d; }
   .answergrid .ag__btn { background: #fff; border: 1px solid #bbb; color: #777; box-shadow: none !important; }
   .answergrid .ag__btn--correct[aria-pressed="true"] { background: #e9f9ef; border-color: #16a34a; color: #16a34a; }
   .answergrid .ag__btn--wrong[aria-pressed="true"] { background: #fdecec; border-color: #dc2626; color: #dc2626; }
