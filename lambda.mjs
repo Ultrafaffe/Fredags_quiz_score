@@ -27,11 +27,12 @@ const response = (statusCode, body) => ({
 });
 
 /* Värdtokenen får bara lämnas ut till den som skapade spelet (POST /games).
-   Allt annat svar – inklusive listor med resultat – ska rensas. */
+   Allt annat svar – inklusive listor med resultat – ska rensas.
+   Spelare lagras som en karta per playerId men lämnas alltid ut som lista. */
 const publicGame = (game) => {
   if (!game) return game;
-  const { hostToken, ...rest } = game;
-  return rest;
+  const { hostToken, players, ...rest } = game;
+  return { ...rest, players: Object.values(players ?? {}) };
 };
 
 const header = (event, name) => {
@@ -39,6 +40,11 @@ const header = (event, name) => {
   const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name);
   return key ? headers[key] : undefined;
 };
+
+/* Nycklad karta per playerId – inte en lista (då blir varje om-spar en dubblett). */
+const isPlayerMap = (players) => Boolean(players)
+  && typeof players === "object"
+  && !Array.isArray(players);
 
 export const handler = async (event) => {
   const method = event?.requestContext?.http?.method
@@ -105,29 +111,74 @@ export const handler = async (event) => {
     const name = String(body.name ?? "").trim().slice(0, 40) || "Deltagare";
     const eliminationAnswer = String(body.eliminationAnswer ?? "").slice(0, 200);
 
+    /* Spelare lagras i en karta per playerId: samma spelare skrivs över i
+       stället för att läggas till igen – senaste resultatet vinner. */
+    const playerKey = playerId.slice(0, 64);
+    const player = {
+      playerId,
+      name,
+      score,
+      eliminationAnswer,
+      submittedAt: new Date().toISOString()
+    };
+
     try {
+      /* Kartformat uppdateras med ett nyckeluttryck (konkurrenssäkert).
+         Allt annat – äldre listor eller saknat attribut – konverteras en gång
+         först, annars går det inte att skriva över enskilda spelare. */
+      if (!isPlayerMap(game.players)) {
+        const players = {};
+
+        if (Array.isArray(game.players)) {
+          for (const stored of game.players) {
+            if (stored && typeof stored === "object" && stored.playerId) {
+              players[String(stored.playerId).slice(0, 64)] = stored;
+            }
+          }
+        }
+
+        players[playerKey] = player;
+
+        try {
+          const migrated = await database.send(new UpdateCommand({
+            TableName: tableName,
+            Key: {
+              gameId: requestedGameId
+            },
+            UpdateExpression: "SET players = :players",
+            ExpressionAttributeValues: {
+              ":players": players,
+              ":active": "active"
+            },
+            ExpressionAttributeNames: {
+              "#status": "status"
+            },
+            ConditionExpression: "attribute_exists(gameId) AND #status = :active",
+            ReturnValues: "ALL_NEW"
+          }));
+
+          return response(200, publicGame(migrated.Attributes));
+        } catch (migrationError) {
+          /* Redan konverterat av någon annan, eller spelet avslutat/borta –
+             uppdateringen nedan hanterar båda fallen. */
+          if (migrationError.name !== "ConditionalCheckFailedException") {
+            throw migrationError;
+          }
+        }
+      }
+
       const result = await database.send(new UpdateCommand({
         TableName: tableName,
         Key: {
           gameId: requestedGameId
         },
-        UpdateExpression: [
-          "SET players = list_append(if_not_exists(players, :empty), :player)"
-        ].join(" "),
+        UpdateExpression: "SET players.#pid = :player",
         ExpressionAttributeValues: {
-          ":empty": [],
           ":active": "active",
-          ":player": [
-            {
-              playerId,
-              name,
-              score,
-              eliminationAnswer,
-              submittedAt: new Date().toISOString()
-            }
-          ]
+          ":player": player
         },
         ExpressionAttributeNames: {
+          "#pid": playerKey,
           "#status": "status"
         },
         // Skyddar även mot att spelet avslutas mellan läsning och skrivning
@@ -170,7 +221,7 @@ export const handler = async (event) => {
         : "letters",
       eliminationQuestion: body.eliminationQuestion === true,
       createdAt: new Date().toISOString(),
-      players: []
+      players: {}
     };
 
     await database.send(new PutCommand({
@@ -180,7 +231,7 @@ export const handler = async (event) => {
     }));
 
     // Endast skaparen får tokenen – den finns med här men aldrig i GET-svar
-    return response(201, game);
+    return response(201, { ...game, players: [] });
   }
 
   // PATCH /games/{gameId}

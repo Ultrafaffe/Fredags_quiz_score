@@ -146,6 +146,43 @@ if ($null -ne $scoreResponse.hostToken) {
 
 Write-Host "Score submitted for Test Player: 8" -ForegroundColor Green
 
+Write-Host "Testing resubmission with the same playerId (expect overwrite, not duplicate)..." -ForegroundColor Cyan
+
+$resubmitted = Invoke-Api `
+    -Method "POST" `
+    -Uri "$api/games/$gameId/scores" `
+    -Body @{
+        playerId = "test-player"
+        name     = "Test Player"
+        score    = 3
+    }
+
+$playersAfterResubmit = @($resubmitted.players)
+
+if ($playersAfterResubmit.Count -ne 1) {
+    throw "Expected exactly 1 player after resubmitting the same playerId, but got $($playersAfterResubmit.Count). Duplicates inflate the leaderboard and the 'N har skickat in' count."
+}
+
+if ([int]$playersAfterResubmit[0].score -ne 3) {
+    throw "Expected the latest score (3) to win, but got $($playersAfterResubmit[0].score)."
+}
+
+$reloadedForPlayers = Invoke-Api `
+    -Method "GET" `
+    -Uri "$api/games/$gameId"
+
+$playersFromGet = @($reloadedForPlayers.players)
+
+if ($playersFromGet.Count -ne 1) {
+    throw "GET returned $($playersFromGet.Count) players for one playerId."
+}
+
+if ([int]$playersFromGet[0].score -ne 3) {
+    throw "GET returned score $($playersFromGet[0].score) instead of the latest submission (3)."
+}
+
+Write-Host "Resubmission overwrote the previous score (players.Count = 1, score = 3)" -ForegroundColor Green
+
 Write-Host "Testing score above questionCount (expect 400)..." -ForegroundColor Cyan
 
 Invoke-ApiExpectingStatus `
