@@ -71,6 +71,7 @@ const els = {
   answerGrid: $('#answergrid'),
   eliminationSummary: $('#elimination-summary'),
   summaryNote: $('#summary-note'),
+  playerResult: $('#player-result'),
   score: $('#score'),
   scoreMax: $('#score-max'),
   editAnswers: $('#edit-answers'),
@@ -89,10 +90,12 @@ const state = {
   eliminationAnswer: '',
   count: 10,
   answers: {},      // { 0: 'A', 1: 'C', ... }
-  correctAnswers: {},
+  correctAnswers: {}, // { 0: true, ... } markerade rätt
+  wrongAnswers: {},   // { 0: true, ... } markerade fel
   score: null,      // antal rätta svar, matas in manuellt
   gameId: '',
   gameCode: '',
+  hostToken: '',    // hemlighet för värden, krävs för att avsluta spelet
   gameStatus: 'active',
   hostName: '',
   playerId: '',
@@ -113,6 +116,7 @@ function load() {
     state.name = String(data.name ?? '');
     state.gameId = String(data.gameId ?? '');
     state.gameCode = String(data.gameCode ?? '');
+    state.hostToken = String(data.hostToken ?? '');
     state.gameStatus = data.gameStatus === 'inactive' ? 'inactive' : 'active';
     state.hostName = String(data.hostName ?? '');
     state.playerId = String(data.playerId ?? '');
@@ -135,6 +139,7 @@ function load() {
     state.count = clampCount(Number(data.count) || MIN_COUNT);
     state.answers = sanitizeAnswers(data.answers);
     state.correctAnswers = sanitizeCorrectAnswers(data.correctAnswers);
+    state.wrongAnswers = sanitizeCorrectAnswers(data.wrongAnswers);
     state.score = Number.isFinite(data.score) && data.score >= 0
       ? Math.min(MAX_COUNT, Math.round(data.score))
       : null;
@@ -166,16 +171,31 @@ function getPlayerId() {
 }
 
 async function apiRequest(path, options = {}) {
-  const request = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'content-type': 'application/json',
-      ...(options.headers ?? {}),
-    },
-  });
-  const body = await request.json().catch(() => ({}));
-  if (!request.ok) throw new Error(body.error ?? body.message ?? `API-fel ${request.status}`);
-  return body;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const request = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'content-type': 'application/json',
+        ...(options.headers ?? {}),
+      },
+    });
+    const body = await request.json().catch(() => ({}));
+    if (!request.ok) {
+      const error = new Error(body.error ?? body.message ?? `API-fel ${request.status}`);
+      error.status = request.status;
+      throw error;
+    }
+    return body;
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('Svarar inte – kontrollera nätverket');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function prepareGame() {
@@ -202,6 +222,8 @@ function getGameSettings() {
 function applyGameSettings(game, locked) {
   state.gameId = String(game.gameId);
   state.gameCode = String(game.gameCode ?? game.gameId);
+  /* Endast POST /games returnerar token – GET-svar (hopplingade) har ingen */
+  if (game.hostToken) state.hostToken = String(game.hostToken);
   state.gameStatus = game.status === 'inactive' ? 'inactive' : 'active';
   state.hostName = String(game.hostName ?? '');
   state.answerCount = clampAnswerCount(Number(game.answerCount) || state.answerCount);
@@ -338,9 +360,31 @@ function goToQuestion(index) {
   save();
 }
 
+/* ---------- Polling ---------- */
+
+let pollTimer = null;
+
+function stopPolling() {
+  clearTimeout(pollTimer);
+  pollTimer = null;
+}
+
+/* fn returnerar true när polling ska sluta. Anrop görs inte när fönstret är dolt. */
+function startPolling(fn, ms = 10000) {
+  stopPolling();
+  const tick = async () => {
+    if (!document.hidden) {
+      try { if (await fn()) return; } catch { /* försök igen nästa varv */ }
+    }
+    pollTimer = setTimeout(tick, ms);
+  };
+  pollTimer = setTimeout(tick, 0);
+}
+
 /* ---------- Vybyte ---------- */
 
 function render() {
+  stopPolling();
   const { setup, host, sheet, summary } = els.views;
   setup.hidden = state.view !== 'setup';
   host.hidden = state.view !== 'host';
@@ -388,6 +432,26 @@ function renderHost() {
   setHostStatus(`${state.count} frågor · ${state.answerDesign === 'text' ? 'Fritext' : `${state.answerCount} svarsalternativ`}`);
   document.title = `Spelkod ${state.gameCode} · Fredagsquiz`;
   if (state.gameStatus === 'inactive' && state.gameId) showHostResult();
+  else startHostPolling();
+}
+
+/* Följer med när deltagare skickar in, tills någon avslutar spelet. */
+function startHostPolling() {
+  if (state.gameStatus !== 'active' || !state.gameId) return;
+
+  startPolling(async () => {
+    const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
+
+    if (game.status === 'inactive') {
+      setHostFinished(true);
+      await showHostResult();
+      return true;
+    }
+
+    const sent = Array.isArray(game.players) ? game.players.length : 0;
+    setHostStatus(`${sent} har skickat in · ${state.count} frågor`);
+    return false;
+  });
 }
 
 async function showHostResult() {
@@ -503,6 +567,7 @@ els.setupForm.addEventListener('submit', async (e) => {
 
   state.answers = {};
   state.correctAnswers = {};
+  state.wrongAnswers = {};
   state.eliminationAnswer = '';
   state.current = 0;
   state.view = 'host';
@@ -525,24 +590,28 @@ els.endGame.addEventListener('click', async () => {
 
   /* Knapparna och spelkoden går ur bilden direkt, så att det tydligt syns att
      spelet avslutats. Om anropet misslyckas sätts vyn tillbaka. */
+  stopPolling();
   setHostFinished(true);
   setHostStatus('Avslutar spelet...');
 
   try {
     await apiRequest(`/games/${encodeURIComponent(state.gameId)}`, {
       method: 'PATCH',
+      headers: { 'x-host-token': state.hostToken },
       body: JSON.stringify({ status: 'inactive' }),
     });
     await showHostResult();
   } catch (error) {
     setHostStatus(`Kunde inte avsluta spelet: ${error.message}`);
     setHostFinished(false);
+    if (state.gameStatus === 'active') startHostPolling();
   }
 });
 
 els.hostNewGame.addEventListener('click', () => {
   state.gameId = '';
   state.gameCode = '';
+  state.hostToken = '';
   state.setupMode = 'initial';
   state.view = 'setup';
   els.gameCode.value = '';
@@ -557,6 +626,7 @@ els.createGame.addEventListener('click', () => {
   state.setupMode = 'create';
   state.gameId = '';
   state.gameCode = '';
+  state.hostToken = '';
   els.gameCode.value = '';
   els.gameCodeStatus.textContent = 'Välj inställningar och tryck Starta.';
   els.closedGameResult.hidden = true;
@@ -570,6 +640,7 @@ els.cancelCreate.addEventListener('click', () => {
   state.setupMode = 'initial';
   state.gameId = '';
   state.gameCode = '';
+  state.hostToken = '';
   els.gameCode.value = '';
   els.gameCodeStatus.textContent = '';
   els.closedGameResult.hidden = true;
@@ -614,10 +685,13 @@ els.joinGame.addEventListener('click', async () => {
       return;
     }
 
+    /* En hopplingad är aldrig värd – nollställ ev. gammal värdtoken */
+    state.hostToken = '';
     applyGameSettings(game, true);
     state.name = els.name.value.trim();
     state.answers = {};
     state.correctAnswers = {};
+    state.wrongAnswers = {};
     state.eliminationAnswer = '';
     state.current = 0;
     state.score = null;
@@ -638,6 +712,7 @@ els.joinGame.addEventListener('click', async () => {
 function resetAnswersForOptionChange() {
   state.answers = {};
   state.correctAnswers = {};
+  state.wrongAnswers = {};
   save();
 }
 
@@ -678,6 +753,7 @@ function renderSheet() {
   state.current = clampIndex(state.current, total);
   state.answers = sanitizeAnswers(state.answers);
   state.correctAnswers = sanitizeCorrectAnswers(state.correctAnswers);
+  state.wrongAnswers = sanitizeCorrectAnswers(state.wrongAnswers);
 
   els.whoName.textContent = displayName();
   els.whoAvatar.textContent = displayName().charAt(0);
@@ -687,6 +763,10 @@ function renderSheet() {
 
   els.totalCount.textContent = String(total);
   els.sheetCount.textContent = String(total);
+
+  /* Hopplingade spelare får inte ändra antalet frågor */
+  const countBlock = els.sheetMinus.closest('.toolbar__count');
+  if (countBlock) countBlock.hidden = state.setupMode === 'join';
   els.sheetPlus.disabled = total >= MAX_COUNT;
   els.sheetMinus.disabled = total <= MIN_COUNT;
 
@@ -759,6 +839,7 @@ els.questions.addEventListener('change', (e) => {
   const idx = Number(card.dataset.index);
   state.answers[idx] = input.value;
   delete state.correctAnswers[idx];
+  delete state.wrongAnswers[idx];
   state.score = correctCount();
   state.current = idx;
   paintCurrent();
@@ -784,6 +865,7 @@ els.questions.addEventListener('input', (e) => {
   if (value) state.answers[idx] = value.slice(0, 200);
   else delete state.answers[idx];
   delete state.correctAnswers[idx];
+  delete state.wrongAnswers[idx];
   state.score = correctCount();
   state.current = idx;
   paintCurrent();
@@ -885,7 +967,9 @@ els.sendAnyway.addEventListener('click', () => {
   finish();
 });
 
-els.submitScore.addEventListener('click', async () => {
+let scoreRetryPending = false;
+
+async function sendScore() {
   if (state.scoreSubmitted || !state.gameId) return;
 
   els.submitScore.disabled = true;
@@ -901,14 +985,26 @@ els.submitScore.addEventListener('click', async () => {
         eliminationAnswer: state.eliminationAnswer,
       }),
     });
+    scoreRetryPending = false;
     state.scoreSubmitted = true;
     renderSummary();
     save();
     toast('Resultatet är sparat');
   } catch (error) {
-    els.scoreStatus.textContent = `Kunde inte spara resultatet: ${error.message}`;
-    els.submitScore.disabled = false;
+    /* Nätverksfel/timeouts är tillfälliga – 4xx betyder att det aldrig går att spara */
+    const permanent = Number.isInteger(error.status) && error.status < 500;
+    scoreRetryPending = !permanent;
+    els.submitScore.disabled = permanent;
+    els.scoreStatus.textContent = permanent
+      ? `Kunde inte spara: ${error.message}`
+      : `Kunde inte spara: ${error.message}. Försöker igen när nätet är tillbaka.`;
   }
+}
+
+els.submitScore.addEventListener('click', sendScore);
+
+window.addEventListener('online', () => {
+  if (scoreRetryPending && state.view === 'summary') sendScore();
 });
 
 function finish() {
@@ -922,6 +1018,7 @@ function finish() {
 
 function renderSummary() {
   const done = answeredCount();
+  els.answerGrid.classList.toggle('answergrid--text', isFreeText());
   const items = [
     ['Deltagare', displayName()],
     ['Spelkod', state.gameCode || '–'],
@@ -938,11 +1035,27 @@ function renderSummary() {
   els.answerGrid.innerHTML = Array.from({ length: state.count }, (_, i) => {
     const letter = state.answers[i];
     const empty = !letter;
+    const markedCorrect = Boolean(state.correctAnswers[i]);
+    const markedWrong = Boolean(state.wrongAnswers[i]);
+    const classes = [
+      empty ? 'ag--empty' : '',
+      markedCorrect ? 'ag--correct' : '',
+      markedWrong ? 'ag--wrong' : '',
+    ].filter(Boolean).join(' ');
+    const what = `Fr&aring;ga ${i + 1}, svar ${escapeHtml(letter ?? 'tomt')}`;
+
     return `
-      <li class="${empty ? 'ag--empty' : ''}${state.correctAnswers[i] ? ' ag--correct' : ''}"
-          ${empty ? '' : `data-correct-index="${i}" role="button" tabindex="0" aria-pressed="${Boolean(state.correctAnswers[i])}"`}>
+      <li class="${classes}" data-index="${i}">
         <span class="ag__num">${i + 1}.</span>
-        <span class="ag__letter${isFreeText() ? ' ag__text' : ''}">${letter ?? '–'}</span>
+        <span class="ag__letter${isFreeText() ? ' ag__text' : ''}">${escapeHtml(letter ?? '–')}</span>
+        <span class="ag__marks">
+          <button type="button" class="ag__btn ag__btn--correct" data-mark-index="${i}" data-mark="correct"
+                  aria-pressed="${markedCorrect}"
+                  aria-label="${what} &ndash; markera som r&auml;tt" title="Markera som r&auml;tt">&#10003;</button>
+          <button type="button" class="ag__btn ag__btn--wrong" data-mark-index="${i}" data-mark="wrong"
+                  aria-pressed="${markedWrong}"
+                  aria-label="${what} &ndash; markera som fel" title="Markera som fel">&#10007;</button>
+        </span>
       </li>`;
   }).join('');
 
@@ -964,27 +1077,60 @@ function renderSummary() {
   els.score.value = String(state.score);
   els.submitScore.disabled = state.scoreSubmitted || !state.gameId;
   els.scoreStatus.textContent = state.scoreSubmitted ? 'Resultatet är sparat.' : '';
+
+  watchForResult();
+}
+
+/* Spelaren väntar in topplistan – polla bara efter att resultatet är sparat. */
+function watchForResult() {
+  if (!state.scoreSubmitted || !state.gameId) return;
+
+  startPolling(async () => {
+    const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
+    if (game.status !== 'inactive') return false;
+
+    els.playerResult.innerHTML = `<h3>Spelet är avslutat</h3>${renderLeaderboard(game.players, state.count)}`;
+    els.playerResult.hidden = false;
+    return true;
+  });
 }
 
 els.answerGrid.addEventListener('click', (e) => {
-  const answer = e.target.closest('[data-correct-index]');
-  if (!answer) return;
-  const idx = Number(answer.dataset.correctIndex);
-  if (state.correctAnswers[idx]) delete state.correctAnswers[idx];
-  else state.correctAnswers[idx] = true;
+  const btn = e.target.closest('[data-mark-index]');
+  if (!btn) return;
+  const idx = Number(btn.dataset.markIndex);
+  const wasCorrect = Boolean(state.correctAnswers[idx]);
+  const wasWrong = Boolean(state.wrongAnswers[idx]);
+
+  delete state.correctAnswers[idx];
+  delete state.wrongAnswers[idx];
+  /* Tryck på knappen sätter läget – tryck igen för att avmarkera */
+  if (btn.dataset.mark === 'correct' && !wasCorrect) state.correctAnswers[idx] = true;
+  if (btn.dataset.mark === 'wrong' && !wasWrong) state.wrongAnswers[idx] = true;
+
+  paintMark(idx);
+
   state.score = correctCount();
+  els.score.value = String(state.score);
+  /* Ändrat efter att resultatet sparats → sluta polla tills det sparas igen */
+  stopPolling();
   state.scoreSubmitted = false;
-  renderSummary();
+  els.submitScore.disabled = !state.gameId;
+  els.scoreStatus.textContent = '';
   save();
 });
 
-els.answerGrid.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter' && e.key !== ' ') return;
-  const answer = e.target.closest('[data-correct-index]');
-  if (!answer) return;
-  e.preventDefault();
-  answer.click();
-});
+/* Uppdaterar en enda ruta utan att rita om hela rutnätet (behåller fokus) */
+function paintMark(idx) {
+  const tile = els.answerGrid.querySelector(`li[data-index="${idx}"]`);
+  if (!tile) return;
+  const correct = Boolean(state.correctAnswers[idx]);
+  const wrong = Boolean(state.wrongAnswers[idx]);
+  tile.classList.toggle('ag--correct', correct);
+  tile.classList.toggle('ag--wrong', wrong);
+  tile.querySelector('.ag__btn--correct').setAttribute('aria-pressed', String(correct));
+  tile.querySelector('.ag__btn--wrong').setAttribute('aria-pressed', String(wrong));
+}
 
 els.editAnswers.addEventListener('click', () => {
   state.view = 'sheet';
@@ -1001,11 +1147,16 @@ els.restart.addEventListener('click', () => {
   state.eliminationAnswer = '';
   state.answers = {};
   state.correctAnswers = {};
+  state.wrongAnswers = {};
   state.score = null;
   state.gameId = '';
   state.gameCode = '';
+  state.hostToken = '';
   state.setupMode = 'initial';
   state.scoreSubmitted = false;
+  scoreRetryPending = false;
+  els.playerResult.hidden = true;
+  els.playerResult.innerHTML = '';
   state.current = 0;
   state.count = 10;
   state.view = 'setup';

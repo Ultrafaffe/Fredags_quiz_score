@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fredagsquiz &middot; Svarsformulär</title>
   <meta name="description" content="Svarsformulär för Fredagsquiz.">
-  <meta name="theme-color" content="#0d0720">
+  <meta name="theme-color" content="#191919">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#10067;</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -198,9 +198,15 @@
       
       <dl class="meta" id="summary-meta"></dl>
 
-      <h3 class="summary__subtitle">Dina svar - klicka f&ouml;r att r&auml;tta</h3>
+      <h3 class="summary__subtitle">Dina svar &ndash; bocka i r&auml;tt eller fel</h3>
       <ol class="answergrid" id="answergrid"></ol>
       <ol class="answergrid elimination-summary" id="elimination-summary" hidden></ol>
+
+      <p class="legend">
+        <span class="legend__item legend__item--correct"><span class="legend__dot" aria-hidden="true">&#10003;</span>R&auml;tt</span>
+        <span class="legend__item legend__item--wrong"><span class="legend__dot" aria-hidden="true">&#10007;</span>Fel</span>
+        <span class="legend__item legend__item--none"><span class="legend__dot" aria-hidden="true">&middot;</span>Ej markerad</span>
+      </p>
 
       <div class="score">
         <label class="score__label" for="score">Antal r&auml;tt</label>
@@ -219,6 +225,7 @@
 
       <p class="summary__note" id="summary-note"></p>
       <p class="summary__note" id="score-status"></p>
+      <div class="host-result" id="player-result" hidden></div>
     </section>
 
   </main>

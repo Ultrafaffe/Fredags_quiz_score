@@ -7,14 +7,15 @@ function Invoke-Api {
     param(
         [string]$Method,
         [string]$Uri,
-        [object]$Body = $null
+        [object]$Body = $null,
+        [hashtable]$Headers = @{}
     )
 
     try {
         $params = @{
             Method  = $Method
             Uri     = $Uri
-            Headers = @{
+            Headers = $Headers + @{
                 Accept = "application/json"
             }
         }
@@ -31,6 +32,46 @@ function Invoke-Api {
         Write-Host $_.Exception.Message -ForegroundColor Red
         throw
     }
+}
+
+# Runs a request that must fail with a specific HTTP status code.
+function Invoke-ApiExpectingStatus {
+    param(
+        [string]$Method,
+        [string]$Uri,
+        [object]$Body = $null,
+        [hashtable]$Headers = @{},
+        [int]$ExpectedStatus
+    )
+
+    $actual = 0
+
+    try {
+        $params = @{
+            Method  = $Method
+            Uri     = $Uri
+            Headers = $Headers + @{
+                Accept = "application/json"
+            }
+        }
+
+        if ($null -ne $Body) {
+            $params.ContentType = "application/json"
+            $params.Body = ($Body | ConvertTo-Json -Compress)
+        }
+
+        Invoke-RestMethod @params | Out-Null
+        $actual = 200
+    }
+    catch {
+        try { $actual = [int]$_.Exception.Response.StatusCode } catch { $actual = -1 }
+    }
+
+    if ($actual -ne $ExpectedStatus) {
+        throw "Expected HTTP $ExpectedStatus from $Method $Uri but got HTTP $actual."
+    }
+
+    Write-Host "OK: $Method $Uri returned HTTP $actual as expected" -ForegroundColor Green
 }
 
 Write-Host "Testing POST /games..." -ForegroundColor Cyan
@@ -53,7 +94,12 @@ if ($game.eliminationQuestion -ne $true) {
     throw "POST response did not contain eliminationQuestion=true. Deploy the updated Lambda code."
 }
 
+if ([string]::IsNullOrWhiteSpace($game.hostToken)) {
+    throw "POST response did not contain hostToken. Deploy the updated Lambda code (step 5)."
+}
+
 Write-Host "Created game: $($game.gameId)" -ForegroundColor Green
+Write-Host "Host token received (not returned by any other route)" -ForegroundColor Green
 
 Write-Host "Testing GET /games/{gameId}..." -ForegroundColor Cyan
 
@@ -69,6 +115,10 @@ if ($loadedGame.gameId -ne $game.gameId) {
 
 if ($loadedGame.eliminationQuestion -ne $true) {
     throw "GET response did not contain eliminationQuestion=true. Check that Lambda stores and returns the setting."
+}
+
+if ($null -ne $loadedGame.hostToken) {
+    throw "GET leaked hostToken. It must be stripped from every response except POST /games."
 }
 
 Write-Host "Loaded game: $($loadedGame.gameId)" -ForegroundColor Green
@@ -90,6 +140,75 @@ if ($null -eq $scoreResponse) {
     throw "Score submission returned an empty response."
 }
 
+if ($null -ne $scoreResponse.hostToken) {
+    throw "Score response leaked hostToken."
+}
+
 Write-Host "Score submitted for Test Player: 8" -ForegroundColor Green
+
+Write-Host "Testing score above questionCount (expect 400)..." -ForegroundColor Cyan
+
+Invoke-ApiExpectingStatus `
+    -Method "POST" `
+    -Uri "$api/games/$gameId/scores" `
+    -Body @{
+        playerId = "test-player"
+        name     = "Test Player"
+        score    = 11
+    } `
+    -ExpectedStatus 400
+
+Write-Host "Testing PATCH without host token (expect 403)..." -ForegroundColor Cyan
+
+Invoke-ApiExpectingStatus `
+    -Method "PATCH" `
+    -Uri "$api/games/$gameId" `
+    -Body @{ status = "inactive" } `
+    -ExpectedStatus 403
+
+Write-Host "Testing PATCH with host token (expect 200)..." -ForegroundColor Cyan
+
+$endedGame = Invoke-Api `
+    -Method "PATCH" `
+    -Uri "$api/games/$gameId" `
+    -Headers @{ "x-host-token" = $game.hostToken } `
+    -Body @{ status = "inactive" }
+
+if ($endedGame.status -ne "inactive") {
+    throw "PATCH with host token did not end the game."
+}
+
+if ($null -ne $endedGame.hostToken) {
+    throw "PATCH response leaked hostToken."
+}
+
+Write-Host "Game ended with host token" -ForegroundColor Green
+
+Write-Host "Testing GET after ending (expect status=inactive, no token)..." -ForegroundColor Cyan
+
+$endedLoaded = Invoke-Api `
+    -Method "GET" `
+    -Uri "$api/games/$gameId"
+
+if ($endedLoaded.status -ne "inactive") {
+    throw "GET did not report the game as inactive."
+}
+
+if ($null -ne $endedLoaded.hostToken) {
+    throw "GET leaked hostToken after the game ended."
+}
+
+Write-Host "Testing score submission to an ended game (expect 409)..." -ForegroundColor Cyan
+
+Invoke-ApiExpectingStatus `
+    -Method "POST" `
+    -Uri "$api/games/$gameId/scores" `
+    -Body @{
+        playerId = "late-player"
+        name     = "Late Player"
+        score    = 9
+    } `
+    -ExpectedStatus 409
+
 Write-Host ""
 Write-Host "All API tests passed." -ForegroundColor Green
