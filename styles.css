@@ -272,6 +272,59 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
   line-height: 1;
 }
 
+/* Spelkod + QR-kod sida vid sida (QR under koden på smala skärmar) */
+.host-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 14px;
+  margin: 32px 0 28px;
+}
+
+.host-share .host-code {
+  flex: 1 1 240px;
+  min-width: 0;
+  margin: 0;
+  align-content: center;
+}
+
+.host-qr {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 166, 0, 0.45);
+  background: #f9f7f4;
+  color: #141312;
+}
+
+.host-qr__code svg {
+  display: block;
+  width: 148px;
+  height: 148px;
+}
+
+.host-qr__text {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5a5348;
+}
+
+.host-qr-note {
+  flex: 1 1 100%;
+  margin: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 /* ---------- Topplista ---------- */
 
 .host-result {
@@ -417,6 +470,7 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
 }
 
 .panel--host.panel--finished .panel__intro,
+.panel--host.panel--finished .host-share,
 .panel--host.panel--finished .host-code,
 .panel--host.panel--finished .host-actions__copy,
 .panel--host.panel--finished .host-actions__end {
@@ -1351,7 +1405,7 @@ kbd {
   font-size: clamp(1.35rem, 4.6vw, 1.75rem);
   font-weight: 700;
   line-height: 1.3;
-  color: var(--brand-ink);
+  color: var(--muted);
 }
 
 /* ---------- Footer / toast / confetti ---------- */

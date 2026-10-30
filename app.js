@@ -36,6 +36,9 @@ const els = {
   startActions: $('#start-actions'),
   cancelCreate: $('#cancel-create'),
   hostGameCode: $('#host-game-code'),
+  hostQr: $('#host-qr'),
+  hostQrCode: $('#host-qr-code'),
+  hostQrNote: $('#host-qr-note'),
   copyGameCode: $('#copy-game-code'),
   endGame: $('#end-game'),
   hostNewGame: $('#host-new-game'),
@@ -310,6 +313,13 @@ const countFromUrl = () => {
   return Number.isFinite(n) && n > 0 ? clampCount(n) : null;
 };
 
+/* QR-länken använder ?kod=ABCDE (eller ?code=ABCDE) */
+const codeFromUrl = () => {
+  const params = new URLSearchParams(location.search);
+  const raw = (params.get('kod') ?? params.get('code') ?? '').trim().toUpperCase();
+  return /^[A-Z0-9]{4,8}$/.test(raw) ? raw : null;
+};
+
 const answeredCount = () => Object.keys(state.answers).length;
 const correctCount = () => Object.keys(state.correctAnswers).filter((key) => Number(key) < state.count).length;
 
@@ -417,6 +427,64 @@ function setHostFinished(finished) {
   state.gameStatus = finished ? 'inactive' : 'active';
   els.views.host.classList.toggle('panel--finished', finished);
   els.endGame.disabled = finished;
+  renderHostQr();
+}
+
+/* Adressen som QR-koden pekar på – appen öppnas med spelkoden ifylld. */
+function joinUrl() {
+  const url = new URL(location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('kod', state.gameCode);
+  return url.toString();
+}
+
+const isLocalHost = () => ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+
+function renderHostQr() {
+  if (!els.hostQr || !els.hostQrCode) return;
+
+  const code = state.gameCode.trim();
+  const setNote = (message) => {
+    if (!els.hostQrNote) return;
+    els.hostQrNote.textContent = message;
+    els.hostQrNote.hidden = !message;
+  };
+  const hide = (message) => {
+    els.hostQr.hidden = true;
+    els.hostQrCode.innerHTML = '';
+    setNote(message);
+  };
+
+  if (!code || state.gameStatus === 'inactive') {
+    hide('');
+    return;
+  }
+
+  if (location.protocol === 'file:') {
+    hide('QR-koden visas först när sidan ligger på en webbserver (http/https), inte när filen öppnas direkt.');
+    return;
+  }
+
+  if (typeof qrcode !== 'function') {
+    console.warn('qrcode.js saknas – QR-koden kan inte ritas. Kontrollera att filen ligger bredvid index.html.');
+    hide('QR-koden kunde inte laddas – kontrollera att qrcode.js ligger bredvid index.html.');
+    return;
+  }
+
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(joinUrl());
+    qr.make();
+    els.hostQrCode.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    els.hostQr.hidden = false;
+    setNote(isLocalHost()
+      ? 'QR-koden pekar på localhost och funkar bara på den här datorn – publicera sidan för att deltagarna ska kunna skanna.'
+      : '');
+  } catch (error) {
+    console.warn('Kunde inte skapa QR-koden:', error);
+    hide('Kunde inte skapa QR-koden – använd spelkoden ovan.');
+  }
 }
 
 function setHostStatus(message) {
@@ -1044,17 +1112,20 @@ function finish() {
 function renderSummary() {
   const done = answeredCount();
   els.answerGrid.classList.toggle('answergrid--text', isFreeText());
-  const items = [
-    ['Deltagare', displayName()],
-    ['Spelkod', state.gameCode || '–'],
-    ['Besvarade', `${done} av ${state.count}`],
-  ];
+  /* Metarutorna är bortkommenterade i index.html – hoppa över om de saknas */
+  if (els.summaryMeta) {
+    const items = [
+      ['Deltagare', displayName()],
+      ['Spelkod', state.gameCode || '–'],
+      ['Besvarade', `${done} av ${state.count}`],
+    ];
 
-  els.summaryMeta.innerHTML = items.map(([key, val]) => `
-    <div class="meta__item">
-      <dt class="meta__key">${key}</dt>
-      <dd class="meta__val">${escapeHtml(val)}</dd>
-    </div>`).join('');
+    els.summaryMeta.innerHTML = items.map(([key, val]) => `
+      <div class="meta__item">
+        <dt class="meta__key">${key}</dt>
+        <dd class="meta__val">${escapeHtml(val)}</dd>
+      </div>`).join('');
+  }
 
   els.answerGrid.innerHTML = Array.from({ length: state.count }, (_, i) => {
     const letter = state.answers[i];
@@ -1088,10 +1159,6 @@ function renderSummary() {
     ? `<li><span class="ag__num">Utslagsfråga.</span><span class="ag__letter ag__text">${escapeHtml(state.eliminationAnswer || '–')}</span></li>`
     : '';
 
-  const missing = state.count - done;
-  els.summaryNote.textContent = missing > 0
-    ? `${missing} frågor lämnades tomma.`
-    : '';
 
   document.title = 'Svar inskickade · Fredagsquiz';
 
@@ -1280,6 +1347,23 @@ load();
 
 const preset = countFromUrl();
 if (preset !== null) state.count = preset;
+
+/* QR-länk: ?kod=ABCDE → förifyll spelkoden och öppna uppstarten */
+const joinCode = codeFromUrl();
+if (joinCode) {
+  state.gameCode = joinCode;
+  state.view = 'setup';
+  state.setupMode = 'initial';
+  try {
+    const clean = new URL(location.href);
+    clean.searchParams.delete('kod');
+    clean.searchParams.delete('code');
+    history.replaceState(null, '', clean.pathname + clean.search + clean.hash);
+  } catch {
+    /* history kan vara otillgängligt – spelkoden är ändå ifylld */
+  }
+}
+
 state.current = clampIndex(state.current, state.count);
 
 render();

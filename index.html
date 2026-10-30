@@ -121,9 +121,18 @@
         <h2 class="panel__title" id="host-title">Dela spelkoden</h2>
       </div>
 
-      <div class="host-code" aria-live="polite">
-        <span class="host-code__label">Spelkod</span>
-        <strong class="host-code__value" id="host-game-code">-----</strong>
+      <div class="host-share">
+        <div class="host-code" aria-live="polite">
+          <span class="host-code__label">Spelkod</span>
+          <strong class="host-code__value" id="host-game-code">-----</strong>
+        </div>
+
+        <div class="host-qr" id="host-qr" hidden>
+          <div class="host-qr__code" id="host-qr-code" aria-hidden="true"></div>
+          <p class="host-qr__text">Skanna för att gå med</p>
+        </div>
+
+        <p class="host-qr-note" id="host-qr-note" hidden></p>
       </div>
 
       <div class="actions actions--wrap host-actions">
@@ -148,7 +157,7 @@
 
         <div class="toolbar__progress">
           <div class="progress" id="progress" role="progressbar" aria-label="Besvarade fr&aring;gor"
-               aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+               <!-- aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"> -->
             <span class="progress__bar" id="progress-bar"></span>
           </div>
           <span class="toolbar__meta">
@@ -195,7 +204,9 @@
       <!-- <div class="summary__badge" aria-hidden="true">Bra jobbat!&#127881;</div> -->
       <h2 class="panel__title" id="summary-title">Bra jobbat!&#127881;</h2>
       
+      <!-- Metarutorna (Deltagare/Spelkod/Besvarade) är avstängda – ta bort kommentarerna för att visa dem igen
       <dl class="meta" id="summary-meta"></dl>
+      -->
 
       <h3 class="summary__subtitle">Dina svar</h3>
       <p class="legend">
@@ -233,6 +244,7 @@
   <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
+  <script src="qrcode.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -9,16 +9,19 @@ Inga frågor och inga rätta svar ligger i appen: själva rättningen gör du i 
 
 ## Kom igång
 
-Ingen installation, ingen build. Öppna `index.html` i webbläsaren – eller kör en enkel
-statisk server om du vill testa som på riktigt:
+Ingen installation, ingen build – men öppna sidan via en **webbserver**, inte genom att
+dubbelklicka på `index.html`. Med `file://` når sidan varken API:t eller QR-koden.
 
 ```powershell
+# inbyggd server i repot (PowerShell, inget att installera)
+powershell -ExecutionPolicy Bypass -File serve.ps1
+# eller
 python -m http.server 8000
 # eller
 npx serve .
 ```
 
-Besök sedan `http://localhost:8000`.
+Besök sedan `http://localhost:8123` (eller porten du valde).
 
 Vill du testa mot det riktiga API:t behöver sidan nå `API_BASE_URL` i `app.js`.
 
@@ -75,6 +78,11 @@ annars faller `PATCH` tyst i webbläsaren.
 
 - **Valfritt antal frågor via länk:** `index.html?frgor=25` (eller `?questions=25`) startar
   direkt med 25 frågor – praktiskt när quizledaren delar ut samma länk till alla.
+- **QR-kod i värdvyn:** bredvid spelkoden visas en QR-kod som pekar på
+  `index.html?kod=ABCDE`. Den som skannar får spelkoden ifylld och behöver bara skriva
+  sitt namn och trycka **Gå med**. Parametern `?kod=` (eller `?code=`) fungerar även att
+  klistra in manuellt, och städas bort från adressfältet när den använts.
+  QR-koden ritas lokalt av `qrcode.js` (MIT, Kazuhiko Arase) – ingen extern tjänst.
 - **Fritext:** svarsdesignen `text` visar ett textfält per fråga i stället för A–D, och
   svarsrutorna i rättningsvyn blir bredare så svaret får plats bredvid ✓/✗.
 - **Utskriftsvyn** färgmarkera rätt/fel och döljer knappar, så rättningslistan går att skriva ut.
@@ -88,6 +96,8 @@ annars faller `PATCH` tyst i webbläsaren.
 | `index.html` | Sidans struktur: start, värdvy, svarsformulär, sammanfattning |
 | `styles.css` | Fredagsquiz-temat (neonpub), responsiv layout, utskriftsstilar |
 | `app.js` | Spelkod/flöde, svarsval, rättning, sparning, polling, confetti |
+| `qrcode.js` | QR-generator (MIT, Kazuhiko Arase) som ritar koden i värdvyn |
+| `serve.ps1` | Liten statisk server för lokal testning (`http://localhost:8123`) |
 | `lambda.mjs` | API:ns handler: spel, resultat, värdtoken, validering |
 | `test-api.ps1` | Smoke-test mot API:t (skapar spel, testar token och 409) |
 | `aws/` | CloudFormation (S3 + CloudFront), `deploy.ps1`, Amplify-config |
