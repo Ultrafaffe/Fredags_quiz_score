@@ -772,9 +772,10 @@ function renderSheet() {
 
   els.whoName.textContent = displayName();
   els.whoAvatar.textContent = displayName().charAt(0);
-  els.answerHint.innerHTML = isFreeText()
-    ? '<span>Skriv ett svar till varje fr&aring;ga</span>'
-    : `${answerOptions().map((option) => `<kbd>${option}</kbd>`).join('')}<span class="hintbar__sep" aria-hidden="true">&middot;</span><span>kryssa i med tangentbordet &ndash; <kbd>&uarr;</kbd><kbd>&darr;</kbd> byter fr&aring;ga</span>`;
+  els.answerHint.hidden = isFreeText();
+  if (!isFreeText()) {
+    els.answerHint.innerHTML = `${answerOptions().map((option) => `<kbd>${option}</kbd>`).join('')}<span class="hintbar__sep" aria-hidden="true">&middot;</span><span>kryssa i med tangentbordet &ndash; <kbd>&uarr;</kbd><kbd>&darr;</kbd> byter fr&aring;ga</span>`;
+  }
 
   els.totalCount.textContent = String(total);
   els.sheetCount.textContent = String(total);

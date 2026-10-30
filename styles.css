@@ -1407,6 +1407,10 @@ kbd {
   .toolbar__count { margin-left: auto; }
   .game-code-row { grid-template-columns: 1fr; }
   .game-code-row .btn { width: 100%; }
+  /* Telefonläge: "Gå med" först, "Skapa nytt spel" under */
+  .game-code-row #game-code { order: 1; }
+  .game-code-row #join-game { order: 2; }
+  .game-code-row #create-game { order: 3; }
   .actions { flex-direction: column-reverse; align-items: stretch; }
   .actions .btn { width: 100%; }
   .score { gap: 12px; }
