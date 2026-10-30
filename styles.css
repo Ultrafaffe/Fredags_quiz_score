@@ -886,10 +886,12 @@ kbd {
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
 .q {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 18px;
@@ -991,6 +993,7 @@ kbd {
 
 .opt {
   position: relative;
+  min-width: 0;
   cursor: pointer;
 }
 
@@ -1011,6 +1014,8 @@ kbd {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-width: 0;
+  overflow: hidden;
   min-height: 46px;
   padding: 6px 10px;
   font: 700 1.05rem/1 var(--font-body);
@@ -1113,7 +1118,7 @@ kbd {
 
 .meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(92px, 100%), 1fr));
   gap: 8px;
   margin: 22px 0 0;
 }
@@ -1156,13 +1161,13 @@ kbd {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr));
   gap: 12px;
 }
 
 /* Fritextläge: bredare rutor så svaret får plats intill knapparna */
 .answergrid--text {
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
 }
 
 .answergrid li {
@@ -1171,6 +1176,7 @@ kbd {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px 12px;
+  min-width: 0;
   min-height: 84px;
   padding: 14px 16px;
   border-radius: var(--radius-sm);
@@ -1203,6 +1209,7 @@ kbd {
   display: block;
   width: 100%;
   min-width: 0;
+  height: auto;
   min-height: 52px;
   padding: 12px 14px;
   font-size: 1.1rem;
@@ -1210,6 +1217,7 @@ kbd {
   line-height: 1.25;
   overflow-wrap: anywhere;
   text-align: left;
+  align-self: stretch;
 }
 
 .answergrid .ag__marks {
@@ -1386,11 +1394,15 @@ kbd {
 
 @media (max-width: 620px) {
   .topbar { padding-top: 24px; }
+  .brand { gap: 8px; max-width: 100%; }
+  .brand__glass { font-size: 30px; flex: none; }
+  .brand__text { min-width: 0; }
+  .brand__name { font-size: clamp(1.35rem, 6.4vw, 2.2rem); }
   .q { flex-direction: column; align-items: stretch; gap: 12px; padding: 16px; }
   .q__head { justify-content: space-between; }
   .q__num { width: 40px; height: 40px; }
-  .q__opts { grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .opt__badge { min-height: 52px; font-size: 1.25rem; padding: 6px 4px; }
+  .q__opts { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .opt__badge { min-height: 52px; font-size: 1.25rem; padding: 6px 4px; gap: 4px; }
   .toolbar { justify-content: stretch; }
   .toolbar__count { margin-left: auto; }
   .game-code-row { grid-template-columns: 1fr; }
@@ -1426,6 +1438,17 @@ kbd {
   }
   .host-result__of { display: inline; margin: 0 0 0 6px; }
 
+}
+
+/* Extra smala telefoner: allt ska rymmas innanför panelen */
+@media (max-width: 360px) {
+  .panel { padding: 18px 16px; }
+  .toolbar { gap: 10px 12px; padding: 10px 12px; }
+  .toolbar__countlabel { display: none; }
+  .toolbar__progress { min-width: 0; }
+  .answergrid li { padding: 12px; gap: 8px 10px; }
+  .answergrid .ag__btn { min-width: 46px; height: 42px; }
+  .answergrid .ag__marks { gap: 6px; }
 }
 
 
