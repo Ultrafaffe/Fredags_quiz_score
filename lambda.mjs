@@ -15,6 +15,9 @@ const client = new DynamoDBClient({});
 const database = DynamoDBDocumentClient.from(client);
 const tableName = process.env.TABLE_NAME;
 
+/* DynamoDB TTL räknar sekunder sedan epoch. Spel och resultat sparas i 30 dagar. */
+const GAME_TTL_SECONDS = 30 * 24 * 60 * 60;
+
 const response = (statusCode, body) => ({
   statusCode,
   headers: {
@@ -31,8 +34,12 @@ const response = (statusCode, body) => ({
    Spelare lagras som en karta per playerId men lämnas alltid ut som lista. */
 const publicGame = (game) => {
   if (!game) return game;
-  const { hostToken, players, ...rest } = game;
-  return { ...rest, players: Object.values(players ?? {}) };
+  const { hostToken, players, joined, ...rest } = game;
+  return {
+    ...rest,
+    players: Object.values(players ?? {}),
+    joined: Object.values(joined ?? {})
+  };
 };
 
 const header = (event, name) => {
@@ -46,6 +53,22 @@ const isPlayerMap = (players) => Boolean(players)
   && typeof players === "object"
   && !Array.isArray(players);
 
+/* Äldre spel saknar joined-kartan. DynamoDB kan inte skriva till en nestad
+   karta som inte finns, så den skapas först – en befintlig karta behålls. */
+const ensureJoinedMap = async (gameId, game) => {
+  if (isPlayerMap(game?.joined)) return;
+
+  await database.send(new UpdateCommand({
+    TableName: tableName,
+    Key: { gameId },
+    UpdateExpression: "SET joined = if_not_exists(joined, :empty)",
+    ExpressionAttributeValues: {
+      ":empty": {}
+    },
+    ConditionExpression: "attribute_exists(gameId)"
+  }));
+};
+
 export const handler = async (event) => {
   const method = event?.requestContext?.http?.method
     ?? event?.httpMethod
@@ -58,6 +81,18 @@ export const handler = async (event) => {
   const pathParameters = event?.pathParameters ?? {};
   const requestedGameId = pathParameters.gameId;
 
+  /* API Gateway ger antingen rawPath (HTTP API) eller resource (REST API).
+     Rutten /games/{gameId}/players skiljs från /games/{gameId}/scores. */
+  const rawPath = String(
+    event?.rawPath
+    ?? event?.path
+    ?? event?.requestContext?.http?.path
+    ?? event?.requestContext?.resourcePath
+    ?? ""
+  );
+  const route = String(event?.routeKey ?? event?.resource ?? "");
+  const isPlayersRoute = /\/players\/?$/.test(rawPath) || /\/players$/.test(route);
+
   let body = {};
 
   try {
@@ -66,6 +101,83 @@ export const handler = async (event) => {
     return response(400, {
       error: "Request body must be valid JSON"
     });
+  }
+
+  // POST /games/{gameId}/players
+  /* Anmäler en deltagare som gått med i spelet. Resultatet sparas först
+     senare via /scores, så värden kan se vilka som väntar på att svara. */
+  if (method === "POST" && requestedGameId && isPlayersRoute) {
+    const playerId = String(body.playerId ?? "").trim();
+
+    if (!playerId) {
+      return response(400, {
+        error: "playerId is required"
+      });
+    }
+
+    const existing = await database.send(new GetCommand({
+      TableName: tableName,
+      Key: {
+        gameId: requestedGameId
+      }
+    }));
+
+    if (!existing.Item) {
+      return response(404, {
+        error: "Game not found"
+      });
+    }
+
+    if (existing.Item.status !== "active") {
+      return response(409, {
+        error: "Spelet är avslutat"
+      });
+    }
+
+    const playerKey = playerId.slice(0, 64);
+    const joined = {
+      playerId,
+      name: String(body.name ?? "").trim().slice(0, 40) || "Deltagare",
+      joinedAt: new Date().toISOString()
+    };
+
+    try {
+      await ensureJoinedMap(requestedGameId, existing.Item);
+
+      const result = await database.send(new UpdateCommand({
+        TableName: tableName,
+        Key: {
+          gameId: requestedGameId
+        },
+        UpdateExpression: "SET joined.#pid = :joined",
+        ExpressionAttributeValues: {
+          ":active": "active",
+          ":joined": joined
+        },
+        ExpressionAttributeNames: {
+          "#pid": playerKey,
+          "#status": "status"
+        },
+        // Skyddar mot att spelet avslutas mellan läsning och skrivning
+        ConditionExpression: "attribute_exists(gameId) AND #status = :active",
+        ReturnValues: "ALL_NEW"
+      }));
+
+      return response(200, publicGame(result.Attributes));
+    } catch (error) {
+      if (error.name === "ConditionalCheckFailedException") {
+        const current = await database.send(new GetCommand({
+          TableName: tableName,
+          Key: { gameId: requestedGameId }
+        }));
+
+        return current.Item
+          ? response(409, { error: "Spelet är avslutat" })
+          : response(404, { error: "Game not found" });
+      }
+
+      throw error;
+    }
   }
 
   // POST /games/{gameId}/scores
@@ -139,15 +251,25 @@ export const handler = async (event) => {
 
         players[playerKey] = player;
 
+        /* Den som skickar in ett resultat har bevisligen gått med – se till
+           att spelaren finns med i deltagarlistan även för äldre spel. */
+        const joined = isPlayerMap(game.joined) ? { ...game.joined } : {};
+        joined[playerKey] = joined[playerKey] ?? {
+          playerId,
+          name,
+          joinedAt: player.submittedAt
+        };
+
         try {
           const migrated = await database.send(new UpdateCommand({
             TableName: tableName,
             Key: {
               gameId: requestedGameId
             },
-            UpdateExpression: "SET players = :players",
+            UpdateExpression: "SET players = :players, joined = :joined",
             ExpressionAttributeValues: {
               ":players": players,
+              ":joined": joined,
               ":active": "active"
             },
             ExpressionAttributeNames: {
@@ -167,15 +289,24 @@ export const handler = async (event) => {
         }
       }
 
+      await ensureJoinedMap(requestedGameId, game);
+
       const result = await database.send(new UpdateCommand({
         TableName: tableName,
         Key: {
           gameId: requestedGameId
         },
-        UpdateExpression: "SET players.#pid = :player",
+        /* if_not_exists bevarar den ursprungliga anmälningstiden om spelaren
+           redan står med i deltagarlistan. */
+        UpdateExpression: "SET players.#pid = :player, joined.#pid = if_not_exists(joined.#pid, :joined)",
         ExpressionAttributeValues: {
           ":active": "active",
-          ":player": player
+          ":player": player,
+          ":joined": {
+            playerId,
+            name,
+            joinedAt: player.submittedAt
+          }
         },
         ExpressionAttributeNames: {
           "#pid": playerKey,
@@ -219,6 +350,7 @@ export const handler = async (event) => {
 
     const gameId = createGameCode();
     const hostToken = randomUUID();
+    const createdAt = new Date();
 
     const game = {
       gameId,
@@ -232,8 +364,11 @@ export const handler = async (event) => {
         ? body.answerDesign
         : "letters",
       eliminationQuestion: body.eliminationQuestion === true,
-      createdAt: new Date().toISOString(),
-      players: {}
+      createdAt: createdAt.toISOString(),
+      /* Sekunder sedan epoch – DynamoDB tar bort spelet efter 30 dagar. */
+      expiration_time: Math.floor(createdAt.getTime() / 1000) + GAME_TTL_SECONDS,
+      players: {},
+      joined: {}
     };
 
     await database.send(new PutCommand({
@@ -243,7 +378,7 @@ export const handler = async (event) => {
     }));
 
     // Endast skaparen får tokenen – den finns med här men aldrig i GET-svar
-    return response(201, { ...game, players: [] });
+    return response(201, { ...game, players: [], joined: [] });
   }
 
   // PATCH /games/{gameId}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fredagsquiz &middot; Svarsformulär</title>
   <meta name="description" content="Svarsformulär för Fredagsquiz.">
-  <meta name="theme-color" content="#191919">
+  <meta name="theme-color" content="#0f0f10">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#10067;</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -140,6 +140,14 @@
         <button class="btn btn--ghost btn--lg host-actions__end" type="button" id="end-game">Avsluta spel</button>
         <button class="btn btn--ghost btn--lg host-actions__new" type="button" id="host-new-game">Nytt spel</button>
       </div>
+
+      <section class="host-players" id="host-players" aria-labelledby="host-players-title" hidden>
+        <h3 class="host-players__title" id="host-players-title">
+          Med i spelet
+          <span class="host-players__count" id="host-players-count">0</span>
+        </h3>
+        <ul class="host-players__list" id="host-players-list"></ul>
+      </section>
 
       <div class="host-result" id="host-result" hidden></div>
       <p class="summary__note host-status" id="host-status"></p>

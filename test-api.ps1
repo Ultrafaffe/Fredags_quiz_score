@@ -98,8 +98,22 @@ if ([string]::IsNullOrWhiteSpace($game.hostToken)) {
     throw "POST response did not contain hostToken. Deploy the updated Lambda code (step 5)."
 }
 
+if ($null -eq $game.expiration_time) {
+    throw "POST response did not contain expiration_time. Deploy the updated Lambda code."
+}
+
+$nowSeconds = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$expirationSeconds = [long]$game.expiration_time
+$expectedSeconds = 30 * 24 * 60 * 60
+
+if ($expirationSeconds -lt ($nowSeconds + $expectedSeconds - 60) -or
+    $expirationSeconds -gt ($nowSeconds + $expectedSeconds + 60)) {
+    throw "expiration_time should be about 30 days from now, but was $expirationSeconds (now: $nowSeconds)."
+}
+
 Write-Host "Created game: $($game.gameId)" -ForegroundColor Green
 Write-Host "Host token received (not returned by any other route)" -ForegroundColor Green
+Write-Host "expiration_time is 30 days ahead" -ForegroundColor Green
 
 Write-Host "Testing GET /games/{gameId}..." -ForegroundColor Cyan
 
@@ -124,6 +138,52 @@ if ($null -ne $loadedGame.hostToken) {
 Write-Host "Loaded game: $($loadedGame.gameId)" -ForegroundColor Green
 Write-Host "Status: $($loadedGame.status)" -ForegroundColor Green
 Write-Host "Question count: $($loadedGame.questionCount)" -ForegroundColor Green
+
+Write-Host "Testing POST /games/{gameId}/players..." -ForegroundColor Cyan
+
+$joinResponse = Invoke-Api `
+    -Method "POST" `
+    -Uri "$api/games/$gameId/players" `
+    -Body @{
+        playerId = "test-player"
+        name     = "Test Player"
+    }
+
+$joinedAfterJoin = @($joinResponse.joined)
+
+if ($joinedAfterJoin.Count -ne 1) {
+    throw "Expected 1 joined player after joining, but got $($joinedAfterJoin.Count). Deploy the updated Lambda code."
+}
+
+if ($joinedAfterJoin[0].name -ne "Test Player") {
+    throw "Joined player name was not stored (got '$($joinedAfterJoin[0].name)')."
+}
+
+Write-Host "Joined player stored: $($joinedAfterJoin[0].name)" -ForegroundColor Green
+
+Write-Host "Testing repeated join with the same playerId (expect no duplicate)..." -ForegroundColor Cyan
+
+$rejoined = Invoke-Api `
+    -Method "POST" `
+    -Uri "$api/games/$gameId/players" `
+    -Body @{
+        playerId = "test-player"
+        name     = "Test Player"
+    }
+
+if (@($rejoined.joined).Count -ne 1) {
+    throw "Repeated join created a duplicate. Expected 1 joined player, got $(@($rejoined.joined).Count)."
+}
+
+$loadedWithJoined = Invoke-Api `
+    -Method "GET" `
+    -Uri "$api/games/$gameId"
+
+if (@($loadedWithJoined.joined).Count -ne 1) {
+    throw "GET returned $(@($loadedWithJoined.joined).Count) joined players for one playerId."
+}
+
+Write-Host "Repeated join kept the list at 1 player" -ForegroundColor Green
 
 Write-Host "Testing POST /games/{gameId}/scores..." -ForegroundColor Cyan
 
@@ -310,6 +370,17 @@ Invoke-ApiExpectingStatus `
         playerId = "late-player"
         name     = "Late Player"
         score    = 9
+    } `
+    -ExpectedStatus 409
+
+Write-Host "Testing join on an ended game (expect 409)..." -ForegroundColor Cyan
+
+Invoke-ApiExpectingStatus `
+    -Method "POST" `
+    -Uri "$api/games/$gameId/players" `
+    -Body @{
+        playerId = "late-player"
+        name     = "Late Player"
     } `
     -ExpectedStatus 409
 

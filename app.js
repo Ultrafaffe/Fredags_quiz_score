@@ -44,6 +44,9 @@ const els = {
   hostNewGame: $('#host-new-game'),
   hostStatus: $('#host-status'),
   hostResult: $('#host-result'),
+  hostPlayers: $('#host-players'),
+  hostPlayersCount: $('#host-players-count'),
+  hostPlayersList: $('#host-players-list'),
   answerCountField: $('#answer-count-field'),
   answerCount: $('#answer-count'),
   answerDesign: $('#answer-design'),
@@ -210,6 +213,25 @@ async function prepareGame() {
   applyGameSettings(game, true);
   state.playerId = state.playerId || getPlayerId();
   state.scoreSubmitted = false;
+}
+
+/* Anmäler deltagaren till värden direkt vid anslutning. Misslyckas anropet
+   fungerar spelet ändå – resultatet registrerar spelaren när det sparas. */
+async function registerJoin() {
+  if (!state.gameId) return;
+  state.playerId = state.playerId || getPlayerId();
+
+  try {
+    await apiRequest(`/games/${encodeURIComponent(state.gameId)}/players`, {
+      method: 'POST',
+      body: JSON.stringify({
+        playerId: state.playerId,
+        name: displayName(),
+      }),
+    });
+  } catch {
+    /* tyst – anmälan är best effort */
+  }
 }
 
 function getGameSettings() {
@@ -497,13 +519,61 @@ function renderHost() {
   setHostFinished(state.gameStatus === 'inactive');
   els.hostResult.hidden = true;
   els.hostResult.innerHTML = '';
+  renderHostPlayers([], []);
   setHostStatus(`${state.count} frågor · ${state.answerDesign === 'text' ? 'Fritext' : `${state.answerCount} svarsalternativ`}`);
   document.title = `Spelkod ${state.gameCode} · Fredagsquiz`;
   if (state.gameStatus === 'inactive' && state.gameId) showHostResult();
   else startHostPolling();
 }
 
-/* Följer med när deltagare skickar in, tills någon avslutar spelet. */
+/* Visar vilka som gått med i spelet – och markerar dem som redan skickat in.
+   Spelare som skickat in men saknar anmälan (t.ex. äldre spel) tas också med. */
+function renderHostPlayers(joined, players) {
+  if (!els.hostPlayers || !els.hostPlayersList) return;
+
+  const submitted = new Set(
+    (Array.isArray(players) ? players : []).map((player) => String(player?.playerId ?? ''))
+  );
+  const byId = new Map();
+
+  for (const entry of Array.isArray(joined) ? joined : []) {
+    const playerId = String(entry?.playerId ?? '');
+    if (!playerId) continue;
+    byId.set(playerId, {
+      playerId,
+      name: String(entry.name ?? '').trim() || 'Deltagare',
+      joinedAt: String(entry.joinedAt ?? ''),
+    });
+  }
+
+  for (const player of Array.isArray(players) ? players : []) {
+    const playerId = String(player?.playerId ?? '');
+    if (!playerId || byId.has(playerId)) continue;
+    byId.set(playerId, {
+      playerId,
+      name: String(player.name ?? '').trim() || 'Deltagare',
+      joinedAt: String(player.submittedAt ?? ''),
+    });
+  }
+
+  const list = [...byId.values()].sort((first, second) => (
+    first.joinedAt.localeCompare(second.joinedAt) || first.name.localeCompare(second.name, 'sv')
+  ));
+
+  els.hostPlayers.hidden = list.length === 0;
+  els.hostPlayersCount.textContent = String(list.length);
+  els.hostPlayersList.innerHTML = list.map((player) => {
+    const done = submitted.has(player.playerId);
+    return `
+      <li class="host-players__item${done ? ' host-players__item--submitted' : ''}">
+        <span class="host-players__avatar" aria-hidden="true">${escapeHtml(player.name.charAt(0))}</span>
+        <span class="host-players__name">${escapeHtml(player.name)}</span>
+        ${done ? '<span class="host-players__check" title="Har skickat in" aria-label="Har skickat in">&#10003;</span>' : ''}
+      </li>`;
+  }).join('');
+}
+
+/* Följer med när deltagare går med och skickar in, tills någon avslutar spelet. */
 function startHostPolling() {
   if (state.gameStatus !== 'active' || !state.gameId) return;
 
@@ -515,10 +585,6 @@ function startHostPolling() {
       await showHostResult();
       return true;
     }
-
-    const sent = Array.isArray(game.players) ? game.players.length : 0;
-    setHostStatus(`${sent} har skickat in · ${state.count} frågor`);
-    return false;
   });
 }
 
@@ -772,6 +838,8 @@ els.joinGame.addEventListener('click', async () => {
     state.hostToken = '';
     applyGameSettings(game, true);
     state.name = els.name.value.trim();
+    state.playerId = state.playerId || getPlayerId();
+    registerJoin();
     state.answers = {};
     state.correctAnswers = {};
     state.wrongAnswers = {};

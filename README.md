@@ -2,8 +2,8 @@
 
 Ett svarsformulär i Fredagsquiz-tema för kvällens quiz: en **värd** skapar ett spel och får en
 spelkod, alla andra går med på koden från sina egna mobiler, kryssar i sina svar, rättar dem
-och sparar sitt resultat. Värden ser hur många som skickat in – och topplistan dyker upp så
-fort spelet avslutas.
+och sparar sitt resultat. Värden ser vilka som gått med och hur många som skickat in –
+och topplistan dyker upp så fort spelet avslutas.
 
 Inga frågor och inga rätta svar ligger i appen: själva rättningen gör du i sammanfattningen.
 
@@ -31,7 +31,8 @@ Vill du testa mot det riktiga API:t behöver sidan nå `API_BASE_URL` i `app.js`
    (A/B/C, 1/2/3 eller fritext), utslagsfråga och antal frågor (1&ndash;100). Tryck **Starta**,
    så får du en femtecknig **spelkod** att dela.
 2. **Gå med (deltagare)** &ndash; skriv namn och spelkod, så låses spelets inställningar och
-   formuläret fylls i. Antalet frågor kan inte ändras av den som gått med.
+   formuläret fylls i. Namnet dyker samtidigt upp i värdens deltagarlista. Antalet frågor
+   kan inte ändras av den som gått med.
 3. **Svara** &ndash; kryssa i svarsalternativ, eller skriv fritext när quizmästaren valt det.
    Svaren sparas direkt i webbläsaren, så en oavsiktlig uppdatering tappar inget.
 4. **Rätta** &ndash; i sammanfattningen sitter **✓** och **✗** på varje svarsruta. ✓ räknas som
@@ -57,13 +58,18 @@ lagringen är en DynamoDB-tabell (`TABLE_NAME`). Lambdan ligger i `lambda.mjs`.
 | Metod | Route | Beskrivning |
 | --- | --- | --- |
 | `POST` | `/games` | Skapar spel + spelkod. Returnerar **enbart här** en `hostToken` som sparas i värdens webbläsare. |
-| `GET` | `/games/{id}` | Hämtar spel, inställningar och spelare. `hostToken` strippas alltid. |
-| `POST` | `/games/{id}/scores` | Sparar ett resultat. Kräver `status = active` (annars **409**) och `score` heltal `0…questionCount` (annars **400**). |
+| `GET` | `/games/{id}` | Hämtar spel, inställningar, `joined` (deltagare som gått med) och `players` (inskickade resultat). `hostToken` strippas alltid. |
+| `POST` | `/games/{id}/players` | Anmäler en deltagare (`playerId` + `name`) så att värden ser vilka som gått med. Kräver `status = active` (annars **409**). |
+| `POST` | `/games/{id}/scores` | Sparar ett resultat. Kräver `status = active` (annars **409**) och `score` heltal `0…questionCount` (annars **400**). Registrerar även spelaren i `joined` om anmälan saknas. |
 | `PATCH` | `/games/{id}` | Avslutar spelet. Kräver header `x-host-token` (annars **403**) – endast värden kan avsluta. |
 
 CORS sätts i Lambda-svaren (`access-control-allow-headers: content-type,x-host-token`).
 Om du istället styr CORS i API Gateway måste `x-host-token` finnas med i *Allowed headers*,
 annars faller `PATCH` tyst i webbläsaren.
+
+Rutten `POST /games/{id}/players` måste finnas i API Gateway med samma
+Lambda-integration som `/scores`, och Lambdan måste deployas om – annars stannar
+deltagarlistan i värdvyn tom (deltagarna syns då först när de sparat sitt resultat).
 
 ### Nätverk
 
@@ -94,7 +100,7 @@ annars faller `PATCH` tyst i webbläsaren.
 | Fil | Innehåll |
 | --- | --- |
 | `index.html` | Sidans struktur: start, värdvy, svarsformulär, sammanfattning |
-| `styles.css` | Fredagsquiz-temat (neonpub), responsiv layout, utskriftsstilar |
+| `styles.css` | Fredagsquiz-temat (mörkt tema med orange accenter), responsiv layout, utskriftsstilar |
 | `app.js` | Spelkod/flöde, svarsval, rättning, sparning, polling, confetti |
 | `qrcode.js` | QR-generator (MIT, Kazuhiko Arase) som ritar koden i värdvyn |
 | `serve.ps1` | Liten statisk server för lokal testning (`http://localhost:8123`) |
@@ -107,6 +113,9 @@ annars faller `PATCH` tyst i webbläsaren.
 - **Budgetlås:** lägg en budget på $5 (Billing → Budgets → Create budget) med e-postalert.
   Det är din skyddsnät om ett fel någonsin startar en pollnings-loop.
 - **Deploy:** `aws/deploy.ps1` laddar upp statiken och invaliderar CloudFront-cache.
+- **TTL:** aktivera DynamoDB TTL på tabellen med attributet `expiration_time`. Lambda sätter
+  attributet till 30 dagar efter att spelet skapades, så gamla spel och resultat städas bort
+  automatiskt (DynamoDB tar bort dem inom några dagar efter utgången tid).
 
 ## Anpassa
 
@@ -115,3 +124,5 @@ annars faller `PATCH` tyst i webbläsaren.
 - **Gränsen 1&ndash;100 frågor:** konstanten `MAX_COUNT` i `app.js`.
 - **Snabbvalen 5&ndash;50:** `data-count`-värdena på knapparna i `index.html`.
 - **Pollningstakten:** tredje argumentet i `startPolling(fn, ms)` i `app.js` (standard 10000).
+- **Lagringstid:** konstanten `GAME_TTL_SECONDS` i `lambda.mjs` (standard 30 dagar). Kräver att
+  TTL är aktiverat på attributet `expiration_time` i DynamoDB.
