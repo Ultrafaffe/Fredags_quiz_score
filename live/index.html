@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fredagsquiz &middot; Live</title>
+  <meta name="description" content="Live-quiz för Fredagsquiz: värden visar frågorna, deltagarna svarar från mobilen.">
+  <meta name="theme-color" content="#0f0f10">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#10067;</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="bg" aria-hidden="true">
+    <span class="bg__blob bg__blob--brand"></span>
+    <span class="bg__blob bg__blob--deep"></span>
+    <span class="bg__blob bg__blob--amber"></span>
+    <span class="bg__dots"></span>
+  </div>
+
+  <div class="lights" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__glass" aria-hidden="true">&#10067;</span>
+      <span class="brand__text">
+        <span class="brand__name">Fredagsquiz</span>
+      </span>
+      <span class="brand__glass" aria-hidden="true">&#10067;</span>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- 1. Start: gå med eller skapa quiz -->
+    <section class="panel" id="view-start" aria-labelledby="start-title">
+      <h1 class="sr-only" id="start-title">Live-quiz</h1>
+      <form class="setup" id="join-form">
+        <div class="field">
+          <label class="field__label" for="name">Namn</label>
+          <input class="input" type="text" id="name" maxlength="40"
+                 placeholder="t.ex. Anna" autocomplete="name" spellcheck="false" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="game-code">Spelkod</label>
+          <div class="game-code-row">
+            <input class="input" type="text" id="game-code" maxlength="5" required
+                   placeholder="ABCDE" autocomplete="off" spellcheck="false" autocapitalize="characters">
+            <button class="btn btn--primary btn--lg" type="submit" id="join-game">G&aring; med</button>
+          </div>
+          <p class="field__hint" id="join-status" aria-live="polite"></p>
+        </div>
+      </form>
+      <div class="actions actions--wrap">
+        <button class="btn btn--ghost btn--lg" type="button" id="open-editor">Skapa ett quiz</button>
+      </div>
+      <p class="field__hint"><a href="../">Bara svarsformul&auml;ret? &rarr;</a></p>
+    </section>
+
+    <!-- 2. Quizredigerare (värd) -->
+    <section class="panel" id="view-editor" aria-labelledby="editor-title" hidden>
+      <div class="panel__intro">
+        <p class="panel__eyebrow">V&auml;rd</p>
+        <h2 class="panel__title" id="editor-title">Skapa quiz</h2>
+      </div>
+      <form class="setup" id="editor-form" novalidate>
+        <div class="field">
+          <label class="field__label" for="quiz-title">Titel</label>
+          <input class="input" type="text" id="quiz-title" maxlength="100" placeholder="t.ex. Fredag v47">
+        </div>
+        <div class="live-settings">
+          <div class="field">
+            <label class="field__label" for="quiz-timer">Tid per fr&aring;ga</label>
+            <div class="select-wrap">
+              <select class="input select-wrap__select" id="quiz-timer">
+                <option value="0">Ingen timer</option>
+                <option value="10">10 s</option>
+                <option value="20">20 s</option>
+                <option value="30">30 s</option>
+                <option value="60">60 s</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="quiz-scoring">Po&auml;ng</label>
+            <div class="select-wrap">
+              <select class="input select-wrap__select" id="quiz-scoring">
+                <option value="correct">R&auml;tt/fel (1 p per r&auml;tt)</option>
+                <option value="speed">Snabbhet (max 1000 p)</option>
+              </select>
+            </div>
+            <p class="field__hint" id="scoring-hint"></p>
+          </div>
+        </div>
+
+        <ol class="live-editor" id="editor-questions"></ol>
+
+        <div class="actions actions--wrap">
+          <button class="btn btn--ghost" type="button" id="add-question">+ L&auml;gg till fr&aring;ga</button>
+          <button class="btn btn--quiet" type="button" id="export-quiz">Exportera JSON</button>
+          <label class="btn btn--quiet" for="import-quiz">Importera JSON</label>
+          <input class="sr-only" type="file" id="import-quiz" accept="application/json,.json">
+        </div>
+        <p class="field__hint" id="editor-status" aria-live="polite"></p>
+        <div class="actions actions--wrap">
+          <button class="btn btn--ghost btn--lg" type="button" id="editor-back">Tillbaka</button>
+          <button class="btn btn--primary btn--lg" type="submit" id="create-game">Skapa spel</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 3. Värd -->
+    <section class="panel panel--host" id="view-host" aria-labelledby="host-title" hidden>
+      <div id="host-lobby">
+        <div class="panel__intro">
+          <p class="panel__eyebrow" id="host-quiz-title">V&auml;rd</p>
+          <h2 class="panel__title" id="host-title">G&aring; med p&aring; spelkoden</h2>
+        </div>
+        <div class="host-share">
+          <div class="host-code" aria-live="polite">
+            <span class="host-code__label">Spelkod</span>
+            <strong class="host-code__value" id="host-game-code">-----</strong>
+          </div>
+          <div class="host-qr" id="host-qr" hidden>
+            <div class="host-qr__code" id="host-qr-code" aria-hidden="true"></div>
+            <p class="host-qr__text">Skanna f&ouml;r att g&aring; med</p>
+          </div>
+          <p class="host-qr-note" id="host-qr-note" hidden></p>
+        </div>
+        <section class="host-players" aria-labelledby="host-players-title">
+          <h3 class="host-players__title" id="host-players-title">
+            Med i spelet <span class="host-players__count" id="host-players-count">0</span>
+          </h3>
+          <ul class="host-players__list" id="host-players-list"></ul>
+        </section>
+        <div class="actions actions--wrap">
+          <button class="btn btn--primary btn--lg" type="button" id="start-quiz">Starta quiz</button>
+        </div>
+      </div>
+
+      <div id="host-stage" aria-live="polite"></div>
+
+      <div class="actions actions--wrap">
+        <button class="btn btn--quiet" type="button" id="end-game">Avsluta spel</button>
+        <button class="btn btn--ghost" type="button" id="host-new-game" hidden>Nytt quiz</button>
+      </div>
+    </section>
+
+    <!-- 4. Deltagare -->
+    <section class="panel" id="view-player" aria-labelledby="player-title" hidden>
+      <p class="panel__eyebrow" id="player-title">Fredagsquiz &middot; <span id="player-name"></span></p>
+      <div id="player-stage" aria-live="polite"></div>
+      <div class="actions actions--wrap">
+        <button class="btn btn--quiet btn--sm" type="button" id="leave-game">L&auml;mna spelet</button>
+      </div>
+    </section>
+
+  </main>
+
+  <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="../qrcode.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

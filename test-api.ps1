@@ -74,315 +74,109 @@ function Invoke-ApiExpectingStatus {
     Write-Host "OK: $Method $Uri returned HTTP $actual as expected" -ForegroundColor Green
 }
 
-Write-Host "Testing POST /games..." -ForegroundColor Cyan
-
-$game = Invoke-Api `
-    -Method "POST" `
-    -Uri "$api/games" `
-    -Body @{
-        questionCount       = 10
-        answerCount         = 4
-        answerDesign        = "letters"
-        eliminationQuestion = $true
-    }
-
-if ([string]::IsNullOrWhiteSpace($game.gameId)) {
-    throw "POST response did not contain gameId."
+$quiz = @{
+    title        = "Smoke test"
+    timeLimitSec = 20
+    scoring      = "speed"
+    questions    = @(
+        @{ text = "Huvudstad i Peru?"; options = @("Lima", "Quito", "La Paz"); correct = 0 },
+        @{ text = "2 + 2?"; options = @("3", "4"); correct = 1 }
+    )
 }
-
-if ($game.eliminationQuestion -ne $true) {
-    throw "POST response did not contain eliminationQuestion=true. Deploy the updated Lambda code."
-}
-
-if ([string]::IsNullOrWhiteSpace($game.hostToken)) {
-    throw "POST response did not contain hostToken. Deploy the updated Lambda code (step 5)."
-}
-
-if ($null -eq $game.expiration_time) {
-    throw "POST response did not contain expiration_time. Deploy the updated Lambda code."
-}
-
-$nowSeconds = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$expirationSeconds = [long]$game.expiration_time
-$expectedSeconds = 30 * 24 * 60 * 60
-
-if ($expirationSeconds -lt ($nowSeconds + $expectedSeconds - 60) -or
-    $expirationSeconds -gt ($nowSeconds + $expectedSeconds + 60)) {
-    throw "expiration_time should be about 30 days from now, but was $expirationSeconds (now: $nowSeconds)."
-}
-
-Write-Host "Created game: $($game.gameId)" -ForegroundColor Green
-Write-Host "Host token received (not returned by any other route)" -ForegroundColor Green
-Write-Host "expiration_time is 30 days ahead" -ForegroundColor Green
-
-Write-Host "Testing GET /games/{gameId}..." -ForegroundColor Cyan
-
-$gameId = [uri]::EscapeDataString([string]$game.gameId)
-
-$loadedGame = Invoke-Api `
-    -Method "GET" `
-    -Uri "$api/games/$gameId"
-
-if ($loadedGame.gameId -ne $game.gameId) {
-    throw "GET returned a different game."
-}
-
-if ($loadedGame.eliminationQuestion -ne $true) {
-    throw "GET response did not contain eliminationQuestion=true. Check that Lambda stores and returns the setting."
-}
-
-if ($null -ne $loadedGame.hostToken) {
-    throw "GET leaked hostToken. It must be stripped from every response except POST /games."
-}
-
-Write-Host "Loaded game: $($loadedGame.gameId)" -ForegroundColor Green
-Write-Host "Status: $($loadedGame.status)" -ForegroundColor Green
-Write-Host "Question count: $($loadedGame.questionCount)" -ForegroundColor Green
-
-Write-Host "Testing POST /games/{gameId}/players..." -ForegroundColor Cyan
-
-$joinResponse = Invoke-Api `
-    -Method "POST" `
-    -Uri "$api/games/$gameId/players" `
-    -Body @{
-        playerId = "test-player"
-        name     = "Test Player"
-    }
-
-$joinedAfterJoin = @($joinResponse.joined)
-
-if ($joinedAfterJoin.Count -ne 1) {
-    throw "Expected 1 joined player after joining, but got $($joinedAfterJoin.Count). Deploy the updated Lambda code."
-}
-
-if ($joinedAfterJoin[0].name -ne "Test Player") {
-    throw "Joined player name was not stored (got '$($joinedAfterJoin[0].name)')."
-}
-
-Write-Host "Joined player stored: $($joinedAfterJoin[0].name)" -ForegroundColor Green
-
-Write-Host "Testing repeated join with the same playerId (expect no duplicate)..." -ForegroundColor Cyan
-
-$rejoined = Invoke-Api `
-    -Method "POST" `
-    -Uri "$api/games/$gameId/players" `
-    -Body @{
-        playerId = "test-player"
-        name     = "Test Player"
-    }
-
-if (@($rejoined.joined).Count -ne 1) {
-    throw "Repeated join created a duplicate. Expected 1 joined player, got $(@($rejoined.joined).Count)."
-}
-
-$loadedWithJoined = Invoke-Api `
-    -Method "GET" `
-    -Uri "$api/games/$gameId"
-
-if (@($loadedWithJoined.joined).Count -ne 1) {
-    throw "GET returned $(@($loadedWithJoined.joined).Count) joined players for one playerId."
-}
-
-Write-Host "Repeated join kept the list at 1 player" -ForegroundColor Green
-
-Write-Host "Testing POST /games/{gameId}/scores..." -ForegroundColor Cyan
-
-$scoreResponse = Invoke-Api `
-    -Method "POST" `
-    -Uri "$api/games/$gameId/scores" `
-    -Body @{
-        playerId = "test-player"
-        name     = "Test Player"
-        score    = 8
-    }
-
-if ($null -eq $scoreResponse) {
-    throw "Score submission returned an empty response."
-}
-
-if ($null -ne $scoreResponse.hostToken) {
-    throw "Score response leaked hostToken."
-}
-
-Write-Host "Score submitted for Test Player: 8" -ForegroundColor Green
-
-Write-Host "Testing resubmission with the same playerId (expect overwrite, not duplicate)..." -ForegroundColor Cyan
-
-$resubmitted = Invoke-Api `
-    -Method "POST" `
-    -Uri "$api/games/$gameId/scores" `
-    -Body @{
-        playerId = "test-player"
-        name     = "Test Player"
-        score    = 3
-    }
-
-$playersAfterResubmit = @($resubmitted.players)
-
-if ($playersAfterResubmit.Count -ne 1) {
-    throw "Expected exactly 1 player after resubmitting the same playerId, but got $($playersAfterResubmit.Count). Duplicates inflate the leaderboard and the 'N har skickat in' count."
-}
-
-if ([int]$playersAfterResubmit[0].score -ne 3) {
-    throw "Expected the latest score (3) to win, but got $($playersAfterResubmit[0].score)."
-}
-
-$reloadedForPlayers = Invoke-Api `
-    -Method "GET" `
-    -Uri "$api/games/$gameId"
-
-$playersFromGet = @($reloadedForPlayers.players)
-
-if ($playersFromGet.Count -ne 1) {
-    throw "GET returned $($playersFromGet.Count) players for one playerId."
-}
-
-if ([int]$playersFromGet[0].score -ne 3) {
-    throw "GET returned score $($playersFromGet[0].score) instead of the latest submission (3)."
-}
-
-Write-Host "Resubmission overwrote the previous score (players.Count = 1, score = 3)" -ForegroundColor Green
-
-Write-Host "Testing score above questionCount (expect 400)..." -ForegroundColor Cyan
-
-Invoke-ApiExpectingStatus `
-    -Method "POST" `
-    -Uri "$api/games/$gameId/scores" `
-    -Body @{
-        playerId = "test-player"
-        name     = "Test Player"
-        score    = 11
-    } `
-    -ExpectedStatus 400
 
 Write-Host "Testing POST /games validation (expect 400)..." -ForegroundColor Cyan
 
-Invoke-ApiExpectingStatus `
-    -Method "POST" `
-    -Uri "$api/games" `
-    -Body @{ questionCount = 0 } `
-    -ExpectedStatus 400
+Invoke-ApiExpectingStatus -Method "POST" -Uri "$api/games" -Body @{ quiz = @{ questions = @() } } -ExpectedStatus 400
 
-Invoke-ApiExpectingStatus `
-    -Method "POST" `
-    -Uri "$api/games" `
-    -Body @{ questionCount = 1000000000 } `
-    -ExpectedStatus 400
+$speedWithoutTimer = $quiz.Clone()
+$speedWithoutTimer.timeLimitSec = 0
+Invoke-ApiExpectingStatus -Method "POST" -Uri "$api/games" -Body @{ quiz = $speedWithoutTimer } -ExpectedStatus 400
 
-Invoke-ApiExpectingStatus `
-    -Method "POST" `
-    -Uri "$api/games" `
-    -Body @{ questionCount = 10.5 } `
-    -ExpectedStatus 400
+Write-Host "Testing POST /games..." -ForegroundColor Cyan
 
-Write-Host "Testing POST /games upper bound and hostName limit..." -ForegroundColor Cyan
+$game = Invoke-Api -Method "POST" -Uri "$api/games" -Body @{ hostName = "Smoke"; quiz = $quiz }
 
-$longHostName = [string]::new("V", 60)
+if ([string]::IsNullOrWhiteSpace($game.gameId)) { throw "POST response did not contain gameId." }
+if ([string]::IsNullOrWhiteSpace($game.hostToken)) { throw "POST response did not contain hostToken." }
+if ($game.phase -ne "lobby") { throw "New game should be in phase lobby, got '$($game.phase)'." }
 
-$boundedGame = Invoke-Api `
-    -Method "POST" `
-    -Uri "$api/games" `
-    -Body @{
-        questionCount = 100
-        hostName      = $longHostName
-    }
+$gameId = [uri]::EscapeDataString([string]$game.gameId)
+$hostHeaders = @{ "x-host-token" = $game.hostToken }
+Write-Host "Created game: $($game.gameId)" -ForegroundColor Green
 
-if ([int]$boundedGame.questionCount -ne 100) {
-    throw "questionCount=100 must be accepted (frontend MAX_COUNT is 100) but got $($boundedGame.questionCount)."
+Write-Host "Testing GET as player and as host..." -ForegroundColor Cyan
+
+$asPlayer = Invoke-Api -Method "GET" -Uri "$api/games/$gameId"
+if ($null -ne $asPlayer.hostToken) { throw "GET leaked hostToken." }
+if ($null -ne $asPlayer.quiz) { throw "GET without host token leaked the whole quiz." }
+if ($null -eq $asPlayer.serverNow) { throw "GET did not return serverNow." }
+
+$asHost = Invoke-Api -Method "GET" -Uri "$api/games/$gameId" -Headers $hostHeaders
+if (@($asHost.quiz.questions).Count -ne 2) { throw "Host GET did not return the quiz." }
+if ($null -ne $asHost.hostToken) { throw "Host GET leaked hostToken." }
+
+Write-Host "Testing two players joining..." -ForegroundColor Cyan
+
+Invoke-Api -Method "POST" -Uri "$api/games/$gameId/players" -Body @{ playerId = "p1"; name = "Anna" } | Out-Null
+$joinResponse = Invoke-Api -Method "POST" -Uri "$api/games/$gameId/players" -Body @{ playerId = "p2"; name = "Bo" }
+Invoke-Api -Method "POST" -Uri "$api/games/$gameId/players" -Body @{ playerId = "p2"; name = "Bo" } | Out-Null
+$afterJoin = Invoke-Api -Method "GET" -Uri "$api/games/$gameId"
+if (@($afterJoin.joined).Count -ne 2) { throw "Expected 2 joined players (rejoin must not duplicate), got $(@($afterJoin.joined).Count)." }
+Write-Host "2 players joined" -ForegroundColor Green
+
+Write-Host "Testing PATCH without host token (expect 403) and answer in lobby (expect 409)..." -ForegroundColor Cyan
+
+Invoke-ApiExpectingStatus -Method "PATCH" -Uri "$api/games/$gameId" -Body @{ action = "start" } -ExpectedStatus 403
+Invoke-ApiExpectingStatus -Method "POST" -Uri "$api/games/$gameId/answers" -Body @{ playerId = "p1"; questionIndex = 0; choice = 0 } -ExpectedStatus 409
+
+Write-Host "Testing start..." -ForegroundColor Cyan
+
+$started = Invoke-Api -Method "PATCH" -Uri "$api/games/$gameId" -Headers $hostHeaders -Body @{ action = "start" }
+if ($started.phase -ne "question" -or [int]$started.currentIndex -ne 0) { throw "start did not open question 0." }
+Invoke-ApiExpectingStatus -Method "PATCH" -Uri "$api/games/$gameId" -Headers $hostHeaders -Body @{ action = "start" } -ExpectedStatus 409
+
+$duringQuestion = Invoke-Api -Method "GET" -Uri "$api/games/$gameId"
+if ($null -ne $duringQuestion.correct) { throw "Answer key LEAKED to a player during the question." }
+if ($null -ne $duringQuestion.question.correct) { throw "Answer key LEAKED inside the question during the question." }
+if ($null -ne $duringQuestion.leaderboard) { throw "Leaderboard should not be shown during a question." }
+if ($duringQuestion.question.text -ne "Huvudstad i Peru?") { throw "Players did not get the current question text." }
+Write-Host "No answer key visible to players during the question" -ForegroundColor Green
+
+Write-Host "Testing answers..." -ForegroundColor Cyan
+
+Invoke-Api -Method "POST" -Uri "$api/games/$gameId/answers" -Body @{ playerId = "p1"; questionIndex = 0; choice = 0 } | Out-Null
+Invoke-Api -Method "POST" -Uri "$api/games/$gameId/answers" -Body @{ playerId = "p2"; questionIndex = 0; choice = 1 } | Out-Null
+Invoke-ApiExpectingStatus -Method "POST" -Uri "$api/games/$gameId/answers" -Body @{ playerId = "p1"; questionIndex = 0; choice = 1 } -ExpectedStatus 409
+Invoke-ApiExpectingStatus -Method "POST" -Uri "$api/games/$gameId/answers" -Body @{ playerId = "stranger"; questionIndex = 0; choice = 0 } -ExpectedStatus 403
+Invoke-ApiExpectingStatus -Method "POST" -Uri "$api/games/$gameId/answers" -Body @{ playerId = "p2"; questionIndex = 1; choice = 0 } -ExpectedStatus 409
+
+$answered = Invoke-Api -Method "GET" -Uri "$api/games/$gameId"
+if ([int]$answered.answeredCount -ne 2) { throw "Expected answeredCount 2, got $($answered.answeredCount)." }
+
+Write-Host "Testing reveal..." -ForegroundColor Cyan
+
+$revealed = Invoke-Api -Method "PATCH" -Uri "$api/games/$gameId" -Headers $hostHeaders -Body @{ action = "reveal" }
+if ([int]$revealed.correct -ne 0) { throw "reveal did not include the correct option." }
+$board = @($revealed.leaderboard)
+if ($board[0].name -ne "Anna" -or [int]$board[0].score -lt 500 -or [int]$board[1].score -ne 0) {
+    throw "Unexpected leaderboard after reveal: $($board | ConvertTo-Json -Compress)"
 }
+Write-Host "Anna leads with $($board[0].score) p" -ForegroundColor Green
 
-if ($boundedGame.hostName.Length -gt 40) {
-    throw "hostName was not limited to 40 characters (got $($boundedGame.hostName.Length))."
-}
+Write-Host "Testing next, end and idempotent end..." -ForegroundColor Cyan
 
-Write-Host "questionCount=100 accepted, hostName limited to $($boundedGame.hostName.Length) characters" -ForegroundColor Green
+$next = Invoke-Api -Method "PATCH" -Uri "$api/games/$gameId" -Headers $hostHeaders -Body @{ action = "next" }
+if ($next.phase -ne "question" -or [int]$next.currentIndex -ne 1) { throw "next did not open question 1." }
 
-Write-Host "Testing PATCH without host token (expect 403)..." -ForegroundColor Cyan
+$ended = Invoke-Api -Method "PATCH" -Uri "$api/games/$gameId" -Headers $hostHeaders -Body @{ action = "end" }
+if ($ended.phase -ne "finished") { throw "end did not finish the game." }
+$endedAgain = Invoke-Api -Method "PATCH" -Uri "$api/games/$gameId" -Headers $hostHeaders -Body @{ action = "end" }
+if ($endedAgain.phase -ne "finished") { throw "A repeat end must still report finished." }
 
-Invoke-ApiExpectingStatus `
-    -Method "PATCH" `
-    -Uri "$api/games/$gameId" `
-    -Body @{ status = "inactive" } `
-    -ExpectedStatus 403
+Invoke-ApiExpectingStatus -Method "POST" -Uri "$api/games/$gameId/players" -Body @{ playerId = "late"; name = "Late" } -ExpectedStatus 409
 
-Write-Host "Testing PATCH with host token (expect 200)..." -ForegroundColor Cyan
-
-$endedGame = Invoke-Api `
-    -Method "PATCH" `
-    -Uri "$api/games/$gameId" `
-    -Headers @{ "x-host-token" = $game.hostToken } `
-    -Body @{ status = "inactive" }
-
-if ($endedGame.status -ne "inactive") {
-    throw "PATCH with host token did not end the game."
-}
-
-if ($null -ne $endedGame.hostToken) {
-    throw "PATCH response leaked hostToken."
-}
-
-Write-Host "Game ended with host token" -ForegroundColor Green
-
-$firstEndedAt = [string]$endedGame.endedAt
-
-Write-Host "Testing PATCH again on the ended game (expect 200, unchanged endedAt)..." -ForegroundColor Cyan
-
-$repeatPatch = Invoke-Api `
-    -Method "PATCH" `
-    -Uri "$api/games/$gameId" `
-    -Headers @{ "x-host-token" = $game.hostToken } `
-    -Body @{ status = "inactive" }
-
-if ($repeatPatch.status -ne "inactive") {
-    throw "A repeat PATCH must still report the game as inactive."
-}
-
-if ([string]$repeatPatch.endedAt -ne $firstEndedAt) {
-    throw "endedAt changed on a repeat PATCH ($firstEndedAt -> $($repeatPatch.endedAt)). PATCH must be idempotent."
-}
-
-if ($null -ne $repeatPatch.hostToken) {
-    throw "Repeat PATCH response leaked hostToken."
-}
-
-Write-Host "Repeat PATCH is idempotent (endedAt unchanged: $firstEndedAt)" -ForegroundColor Green
-
-Write-Host "Testing GET after ending (expect status=inactive, no token)..." -ForegroundColor Cyan
-
-$endedLoaded = Invoke-Api `
-    -Method "GET" `
-    -Uri "$api/games/$gameId"
-
-if ($endedLoaded.status -ne "inactive") {
-    throw "GET did not report the game as inactive."
-}
-
-if ($null -ne $endedLoaded.hostToken) {
-    throw "GET leaked hostToken after the game ended."
-}
-
-Write-Host "Testing score submission to an ended game (expect 409)..." -ForegroundColor Cyan
-
-Invoke-ApiExpectingStatus `
-    -Method "POST" `
-    -Uri "$api/games/$gameId/scores" `
-    -Body @{
-        playerId = "late-player"
-        name     = "Late Player"
-        score    = 9
-    } `
-    -ExpectedStatus 409
-
-Write-Host "Testing join on an ended game (expect 409)..." -ForegroundColor Cyan
-
-Invoke-ApiExpectingStatus `
-    -Method "POST" `
-    -Uri "$api/games/$gameId/players" `
-    -Body @{
-        playerId = "late-player"
-        name     = "Late Player"
-    } `
-    -ExpectedStatus 409
+$final = Invoke-Api -Method "GET" -Uri "$api/games/$gameId"
+if (@($final.leaderboard).Count -ne 2) { throw "Final leaderboard should list both players." }
 
 Write-Host ""
 Write-Host "All API tests passed." -ForegroundColor Green

@@ -1,6 +1,7 @@
 /* =========================================================
-   Quiz · Svarsformulär
-  Enbart svarsval
+   Fredagsquiz · Svarsformulär (fristående)
+   Svara och rätta själv – ingen server, ingen spelkod.
+   Live-versionen med värd och spelkod ligger i live/.
    ========================================================= */
 
 'use strict';
@@ -10,50 +11,23 @@ const MIN_ANSWER_COUNT = 1;
 const MAX_ANSWER_COUNT = 10;
 const MIN_COUNT = 1;
 const MAX_COUNT = 100;
-const STORAGE_KEY = 'quiz.svarsformular.v1';
-const API_BASE_URL = 'https://cmsp9si3j7.execute-api.eu-north-1.amazonaws.com';
-const PLAYER_ID_KEY = 'quiz.player-id.v1';
+const STORAGE_KEY = 'quiz.formular.v1';
 
 const $ = (sel) => document.querySelector(sel);
 
 const els = {
   views: {
     setup: $('#view-setup'),
-    host: $('#view-host'),
     sheet: $('#view-sheet'),
     summary: $('#view-summary'),
   },
   setupForm: $('#setup-form'),
   name: $('#name'),
-  gameCode: $('#game-code'),
-  gameCodeLabel: $('#game-code-label'),
-  gameCodeRow: $('#game-code-row'),
-  gameCodeStatus: $('#game-code-status'),
-  closedGameResult: $('#closed-game-result'),
-  createGame: $('#create-game'),
-  joinGame: $('#join-game'),
-  gameSettings: $('#game-settings'),
-  startActions: $('#start-actions'),
-  cancelCreate: $('#cancel-create'),
-  hostGameCode: $('#host-game-code'),
-  hostQr: $('#host-qr'),
-  hostQrCode: $('#host-qr-code'),
-  hostQrNote: $('#host-qr-note'),
-  copyGameCode: $('#copy-game-code'),
-  endGame: $('#end-game'),
-  hostNewGame: $('#host-new-game'),
-  hostStatus: $('#host-status'),
-  hostResult: $('#host-result'),
-  hostPlayers: $('#host-players'),
-  hostPlayersCount: $('#host-players-count'),
-  hostPlayersProgress: $('#host-players-progress'),
-  hostPlayersList: $('#host-players-list'),
   answerCountField: $('#answer-count-field'),
   answerCount: $('#answer-count'),
   answerDesign: $('#answer-design'),
   eliminationQuestion: $('#elimination-question'),
   count: $('#count'),
-  countHint: $('#count-hint'),
   chips: [...document.querySelectorAll('.chip')],
   countMinus: $('#count-minus'),
   countPlus: $('#count-plus'),
@@ -74,16 +48,11 @@ const els = {
   questions: $('#questions'),
   backToSetup: $('#back-to-setup'),
   submitAnswers: $('#submit-answers'),
-  summaryMeta: $('#summary-meta'),
   answerGrid: $('#answergrid'),
   eliminationSummary: $('#elimination-summary'),
-  summaryNote: $('#summary-note'),
-  playerResult: $('#player-result'),
   score: $('#score'),
   scoreMax: $('#score-max'),
   editAnswers: $('#edit-answers'),
-  submitScore: $('#submit-score'),
-  scoreStatus: $('#score-status'),
   restart: $('#restart'),
   toast: $('#toast'),
   confetti: $('#confetti'),
@@ -96,20 +65,11 @@ const state = {
   eliminationQuestion: true,
   eliminationAnswer: '',
   count: 10,
-  answers: {},      // { 0: 'A', 1: 'C', ... }
+  answers: {},        // { 0: 'A', 1: 'C', ... }
   correctAnswers: {}, // { 0: true, ... } markerade rätt
   wrongAnswers: {},   // { 0: true, ... } markerade fel
-  score: null,      // antal rätta svar, matas in manuellt
-  gameId: '',
-  gameCode: '',
-  hostToken: '',    // hemlighet för värden, krävs för att avsluta spelet
-  gameStatus: 'active',
-  hostName: '',
-  playerId: '',
-  scoreSubmitted: false,
-  setupMode: 'initial',   // initial | create | join
-  current: 0,       // aktiv fråga för tangentbordsstyrning
-  view: 'setup',    // setup | host | sheet | summary
+  current: 0,         // aktiv fråga för tangentbordsstyrning
+  view: 'setup',      // setup | sheet | summary
 };
 
 /* ---------- Lagring ---------- */
@@ -121,37 +81,16 @@ function load() {
     const data = JSON.parse(raw);
     if (typeof data !== 'object' || data === null) return;
     state.name = String(data.name ?? '');
-    state.gameId = String(data.gameId ?? '');
-    state.gameCode = String(data.gameCode ?? '');
-    state.hostToken = String(data.hostToken ?? '');
-    state.gameStatus = data.gameStatus === 'inactive' ? 'inactive' : 'active';
-    state.hostName = String(data.hostName ?? '');
-    state.playerId = String(data.playerId ?? '');
-    state.scoreSubmitted = data.scoreSubmitted === true;
-    state.setupMode = ['initial', 'create', 'join'].includes(data.setupMode) ? data.setupMode : 'initial';
-    const legacyDesigns = {
-      letters4: { answerCount: 4, answerDesign: 'letters' },
-      numbers4: { answerCount: 4, answerDesign: 'numbers' },
-      letters3: { answerCount: 3, answerDesign: 'letters' },
-    };
-    const savedDesign = legacyDesigns[data.answerDesign];
-    state.answerCount = savedDesign?.answerCount ?? clampAnswerCount(Number(data.answerCount) || 4);
-    state.answerDesign = savedDesign?.answerDesign ?? (ANSWER_DESIGNS.includes(data.answerDesign) ? data.answerDesign : 'letters');
-    state.eliminationQuestion = typeof data.eliminationQuestion === 'boolean'
-      ? data.eliminationQuestion
-      : true;
-    state.eliminationAnswer = typeof data.eliminationAnswer === 'string'
-      ? data.eliminationAnswer.slice(0, 200)
-      : '';
+    state.answerCount = clampAnswerCount(Number(data.answerCount) || 4);
+    state.answerDesign = ANSWER_DESIGNS.includes(data.answerDesign) ? data.answerDesign : 'letters';
+    state.eliminationQuestion = typeof data.eliminationQuestion === 'boolean' ? data.eliminationQuestion : true;
+    state.eliminationAnswer = typeof data.eliminationAnswer === 'string' ? data.eliminationAnswer.slice(0, 200) : '';
     state.count = clampCount(Number(data.count) || MIN_COUNT);
     state.answers = sanitizeAnswers(data.answers);
-    state.correctAnswers = sanitizeCorrectAnswers(data.correctAnswers);
-    state.wrongAnswers = sanitizeCorrectAnswers(data.wrongAnswers);
-    state.score = Number.isFinite(data.score) && data.score >= 0
-      ? Math.min(MAX_COUNT, Math.round(data.score))
-      : null;
+    state.correctAnswers = sanitizeMarks(data.correctAnswers);
+    state.wrongAnswers = sanitizeMarks(data.wrongAnswers);
     state.current = clampIndex(data.current, state.count);
-    state.view = ['setup', 'host', 'sheet', 'summary'].includes(data.view) ? data.view : 'setup';
+    state.view = ['setup', 'sheet', 'summary'].includes(data.view) ? data.view : 'setup';
   } catch {
     /* korrupt sparad data – börja om */
   }
@@ -163,148 +102,6 @@ function save() {
   } catch {
     /* privat läge / fullt lagring – ignoreras tyst */
   }
-}
-
-function getPlayerId() {
-  try {
-    const saved = localStorage.getItem(PLAYER_ID_KEY);
-    if (saved) return saved;
-    const id = crypto.randomUUID ? crypto.randomUUID() : `player-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    localStorage.setItem(PLAYER_ID_KEY, id);
-    return id;
-  } catch {
-    return `player-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  }
-}
-
-/* Serverns felmeddelanden är delvis på engelska – välj text efter statuskod.
-   Svenska meddelanden från servern (t.ex. "Spelet är avslutat") släpps igenom. */
-function friendlyApiError(status, body) {
-  const server = String(body?.error ?? '');
-  if (status === 409) return server || 'Spelet är avslutat.';
-  if (status === 400 && server.startsWith('Ogiltigt')) return server;
-  if (status === 400 || status === 422) return 'Något i uppgifterna stämmer inte – kontrollera dem och försök igen.';
-  if (status === 403) return 'Bara den som skapade spelet kan göra det här.';
-  if (status === 404) return 'Hittar inget spel med den koden – kontrollera att den är rätt skriven.';
-  if (status === 429) return 'För många försök just nu – vänta en stund och försök igen.';
-  if (status >= 500) return 'Något gick fel hos servern – försök igen om en stund.';
-  return 'Något gick fel – försök igen.';
-}
-
-async function apiRequest(path, options = {}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const request = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        'content-type': 'application/json',
-        ...(options.headers ?? {}),
-      },
-    });
-    const body = await request.json().catch(() => ({}));
-    if (!request.ok) {
-      const error = new Error(friendlyApiError(request.status, body));
-      error.status = request.status;
-      throw error;
-    }
-    return body;
-  } catch (error) {
-    if (error.name === 'AbortError') throw new Error('Servern svarar inte – kontrollera nätverket och försök igen.');
-    /* fetch kastar TypeError när nätet är nere eller servern inte nås */
-    if (error instanceof TypeError) throw new Error('Ingen kontakt med servern – kontrollera nätverket och försök igen.');
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function prepareGame() {
-  const game = await apiRequest('/games', {
-    method: 'POST',
-    body: JSON.stringify(getGameSettings()),
-  });
-
-  applyGameSettings(game, true);
-  state.playerId = state.playerId || getPlayerId();
-  state.scoreSubmitted = false;
-}
-
-/* Anmäler deltagaren till värden direkt vid anslutning. Misslyckas anropet
-   fungerar spelet ändå – resultatet registrerar spelaren när det sparas. */
-async function registerJoin() {
-  if (!state.gameId) return;
-  state.playerId = state.playerId || getPlayerId();
-
-  try {
-    await apiRequest(`/games/${encodeURIComponent(state.gameId)}/players`, {
-      method: 'POST',
-      body: JSON.stringify({
-        playerId: state.playerId,
-        name: displayName(),
-      }),
-    });
-  } catch {
-    /* tyst – anmälan är best effort */
-  }
-}
-
-function getGameSettings() {
-  return {
-    hostName: state.name,
-    questionCount: state.count,
-    answerCount: state.answerCount,
-    answerDesign: state.answerDesign,
-    eliminationQuestion: state.eliminationQuestion,
-  };
-}
-
-function applyGameSettings(game, locked) {
-  state.gameId = String(game.gameId);
-  state.gameCode = String(game.gameCode ?? game.gameId);
-  /* Endast POST /games returnerar token – GET-svar (hopplingade) har ingen */
-  if (game.hostToken) state.hostToken = String(game.hostToken);
-  state.gameStatus = game.status === 'inactive' ? 'inactive' : 'active';
-  state.hostName = String(game.hostName ?? '');
-  state.answerCount = clampAnswerCount(Number(game.answerCount) || state.answerCount);
-  state.answerDesign = ANSWER_DESIGNS.includes(game.answerDesign)
-    ? game.answerDesign
-    : state.answerDesign;
-  state.eliminationQuestion = game.eliminationQuestion === true;
-  state.count = clampCount(Number(game.questionCount) || state.count);
-  els.gameCode.value = state.gameCode;
-  els.answerCount.value = String(state.answerCount);
-  els.answerDesign.value = state.answerDesign;
-  els.eliminationQuestion.checked = state.eliminationQuestion;
-  els.count.value = String(state.count);
-  els.answerCountField.hidden = isFreeText();
-  if (locked) state.setupMode = 'join';
-  syncSetupMode();
-}
-
-function syncSetupMode() {
-  const creating = state.setupMode === 'create';
-
-  els.gameSettings.hidden = !creating;
-  els.startActions.hidden = !creating;
-  els.gameCodeLabel.hidden = creating;
-  els.gameCodeRow.hidden = creating;
-  els.createGame.hidden = creating;
-  els.joinGame.hidden = creating;
-  els.gameCode.disabled = false;
-
-  const controls = [
-    els.answerCount,
-    els.answerDesign,
-    els.eliminationQuestion,
-    els.count,
-    els.countMinus,
-    els.countPlus,
-    ...els.chips,
-  ];
-  for (const control of controls) control.disabled = !creating;
 }
 
 function sanitizeAnswers(raw) {
@@ -322,7 +119,7 @@ function sanitizeAnswers(raw) {
   return out;
 }
 
-function sanitizeCorrectAnswers(raw) {
+function sanitizeMarks(raw) {
   const out = {};
   if (typeof raw !== 'object' || raw === null) return out;
   for (const [key, value] of Object.entries(raw)) {
@@ -347,16 +144,9 @@ function clampIndex(i, count) {
 /* ---------- Hjälpare ---------- */
 
 const countFromUrl = () => {
-  const raw = new URLSearchParams(location.search).get('frgor') ?? new URLSearchParams(location.search).get('questions');
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? clampCount(n) : null;
-};
-
-/* QR-länken använder ?kod=ABCDE (eller ?code=ABCDE) */
-const codeFromUrl = () => {
   const params = new URLSearchParams(location.search);
-  const raw = (params.get('kod') ?? params.get('code') ?? '').trim().toUpperCase();
-  return /^[A-Z0-9]{4,8}$/.test(raw) ? raw : null;
+  const n = Number(params.get('frgor') ?? params.get('questions'));
+  return Number.isFinite(n) && n > 0 ? clampCount(n) : null;
 };
 
 const answeredCount = () => Object.keys(state.answers).length;
@@ -393,13 +183,17 @@ function toast(message) {
   }, 2400);
 }
 
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 function scrollToQuestion(index) {
-  const node = document.getElementById(`q-${index}`);
-  if (!node) return;
-  node.scrollIntoView({
-    behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+  document.getElementById(`q-${index}`)?.scrollIntoView({
+    behavior: reducedMotion() ? 'auto' : 'smooth',
     block: 'center',
   });
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' });
 }
 
 function goToQuestion(index) {
@@ -409,273 +203,34 @@ function goToQuestion(index) {
   save();
 }
 
-/* ---------- Polling ---------- */
-
-let pollTimer = null;
-
-function stopPolling() {
-  clearTimeout(pollTimer);
-  pollTimer = null;
-}
-
-/* fn returnerar true när polling ska sluta. Anrop görs inte när fönstret är dolt. */
-function startPolling(fn, ms = 10000) {
-  stopPolling();
-  const tick = async () => {
-    if (!document.hidden) {
-      try { if (await fn()) return; } catch { /* försök igen nästa varv */ }
-    }
-    pollTimer = setTimeout(tick, ms);
-  };
-  pollTimer = setTimeout(tick, 0);
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (ch) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+  ));
 }
 
 /* ---------- Vybyte ---------- */
 
 function render() {
-  stopPolling();
-  const { setup, host, sheet, summary } = els.views;
+  const { setup, sheet, summary } = els.views;
   setup.hidden = state.view !== 'setup';
-  host.hidden = state.view !== 'host';
   sheet.hidden = state.view !== 'sheet';
   summary.hidden = state.view !== 'summary';
 
   if (state.view === 'setup') {
     els.name.value = state.name;
-    els.gameCode.value = state.gameCode;
     els.answerCountField.hidden = isFreeText();
     els.answerCount.value = String(state.answerCount);
     els.answerDesign.value = state.answerDesign;
     els.eliminationQuestion.checked = state.eliminationQuestion;
     els.count.value = String(state.count);
-    syncSetupMode();
     syncChips();
     document.title = 'Fredagsquiz · Svarsformulär';
   }
-
-  if (state.view === 'host') renderHost();
   if (state.view === 'sheet') renderSheet();
   if (state.view === 'summary') renderSummary();
 
   save();
-}
-
-/* Värdvyns rubriktext ändras inte när spelet avslutas – hela
-   rubrikblocket döljs i stället (se .panel--finished i styles.css). */
-function setHostFinished(finished) {
-  state.gameStatus = finished ? 'inactive' : 'active';
-  els.views.host.classList.toggle('panel--finished', finished);
-  els.endGame.disabled = finished;
-  renderHostQr();
-}
-
-/* Adressen som QR-koden pekar på – appen öppnas med spelkoden ifylld. */
-function joinUrl() {
-  const url = new URL(location.href);
-  url.search = '';
-  url.hash = '';
-  url.searchParams.set('kod', state.gameCode);
-  return url.toString();
-}
-
-const isLocalHost = () => ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
-
-function renderHostQr() {
-  if (!els.hostQr || !els.hostQrCode) return;
-
-  const code = state.gameCode.trim();
-  const setNote = (message) => {
-    if (!els.hostQrNote) return;
-    els.hostQrNote.textContent = message;
-    els.hostQrNote.hidden = !message;
-  };
-  const hide = (message) => {
-    els.hostQr.hidden = true;
-    els.hostQrCode.innerHTML = '';
-    setNote(message);
-  };
-
-  if (!code || state.gameStatus === 'inactive') {
-    hide('');
-    return;
-  }
-
-  if (location.protocol === 'file:') {
-    hide('QR-koden visas först när sidan ligger på en webbserver (http/https), inte när filen öppnas direkt.');
-    return;
-  }
-
-  if (typeof qrcode !== 'function') {
-    console.warn('qrcode.js saknas – QR-koden kan inte ritas. Kontrollera att filen ligger bredvid index.html.');
-    hide('QR-koden kunde inte laddas – kontrollera att qrcode.js ligger bredvid index.html.');
-    return;
-  }
-
-  try {
-    const qr = qrcode(0, 'M');
-    qr.addData(joinUrl());
-    qr.make();
-    els.hostQrCode.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
-    els.hostQr.hidden = false;
-    setNote(isLocalHost()
-      ? 'QR-koden pekar på localhost och funkar bara på den här datorn – publicera sidan för att deltagarna ska kunna skanna.'
-      : '');
-  } catch (error) {
-    console.warn('Kunde inte skapa QR-koden:', error);
-    hide('Kunde inte skapa QR-koden – använd spelkoden ovan.');
-  }
-}
-
-function setHostStatus(message) {
-  els.hostStatus.textContent = message;
-  els.hostStatus.hidden = !message;
-}
-
-function renderHost() {
-  els.hostGameCode.textContent = state.gameCode || '-----';
-  setHostFinished(state.gameStatus === 'inactive');
-  els.hostResult.hidden = true;
-  els.hostResult.innerHTML = '';
-  renderHostPlayers([], []);
-  setHostStatus(`${state.count} frågor · ${state.answerDesign === 'text' ? 'Fritext' : `${state.answerCount} svarsalternativ`}`);
-  document.title = `Spelkod ${state.gameCode} · Fredagsquiz`;
-  if (state.gameStatus === 'inactive' && state.gameId) showHostResult();
-  else startHostPolling();
-}
-
-/* Visar vilka som gått med i spelet – och markerar dem som redan skickat in.
-   Spelare som skickat in men saknar anmälan (t.ex. äldre spel) tas också med. */
-let hostTally = { joined: 0, submitted: 0 };
-
-function renderHostPlayers(joined, players) {
-  if (!els.hostPlayers || !els.hostPlayersList) return;
-
-  const submitted = new Set(
-    (Array.isArray(players) ? players : []).map((player) => String(player?.playerId ?? ''))
-  );
-  const byId = new Map();
-
-  for (const entry of Array.isArray(joined) ? joined : []) {
-    const playerId = String(entry?.playerId ?? '');
-    if (!playerId) continue;
-    byId.set(playerId, {
-      playerId,
-      name: String(entry.name ?? '').trim() || 'Deltagare',
-      joinedAt: String(entry.joinedAt ?? ''),
-    });
-  }
-
-  for (const player of Array.isArray(players) ? players : []) {
-    const playerId = String(player?.playerId ?? '');
-    if (!playerId || byId.has(playerId)) continue;
-    byId.set(playerId, {
-      playerId,
-      name: String(player.name ?? '').trim() || 'Deltagare',
-      joinedAt: String(player.submittedAt ?? ''),
-    });
-  }
-
-  const list = [...byId.values()].sort((first, second) => (
-    first.joinedAt.localeCompare(second.joinedAt) || first.name.localeCompare(second.name, 'sv')
-  ));
-
-  els.hostPlayers.hidden = list.length === 0;
-  const submittedCount = list.filter((player) => submitted.has(player.playerId)).length;
-  hostTally = { joined: list.length, submitted: submittedCount };
-  els.hostPlayersCount.textContent = String(list.length);
-  els.hostPlayersProgress.textContent = `${submittedCount} av ${list.length} har skickat in sitt resultat`;
-  els.hostPlayersList.innerHTML = list.map((player) => {
-    const done = submitted.has(player.playerId);
-    return `
-      <li class="host-players__item${done ? ' host-players__item--submitted' : ''}">
-        <span class="host-players__avatar" aria-hidden="true">${escapeHtml(player.name.charAt(0))}</span>
-        <span class="host-players__name">${escapeHtml(player.name)}</span>
-        ${done ? '<span class="host-players__check" title="Har skickat in" aria-label="Har skickat in">&#10003;</span>' : ''}
-      </li>`;
-  }).join('');
-}
-
-/* Följer med när deltagare går med och skickar in, tills någon avslutar spelet. */
-function startHostPolling() {
-  if (state.gameStatus !== 'active' || !state.gameId) return;
-
-  startPolling(async () => {
-    const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
-
-    if (game.status === 'inactive') {
-      setHostFinished(true);
-      await showHostResult();
-      return true;
-    }
-    renderHostPlayers(game.joined, game.players);
-  });
-}
-
-async function showHostResult() {
-  setHostStatus('Hämtar resultat...');
-
-  try {
-    const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
-    els.hostResult.hidden = false;
-    els.hostResult.innerHTML = renderLeaderboard(game.players, state.count);
-    setHostStatus('');
-  } catch (error) {
-    els.hostResult.hidden = true;
-    els.hostResult.innerHTML = '';
-    setHostStatus(`Kunde inte hämta resultatet: ${error.message}`);
-  }
-}
-
-function renderLeaderboard(players, questionCount) {
-  const ranked = (Array.isArray(players) ? players : [])
-    .map((player) => ({
-      name: player.name || 'Deltagare',
-      score: Number(player.score) || 0,
-      eliminationAnswer: player.eliminationAnswer || '',
-    }))
-    .sort((first, second) => second.score - first.score);
-
-  if (ranked.length === 0) {
-    return '<h3>Inga resultat ännu</h3><p>Ingen deltagare har sparat sitt resultat.</p>';
-  }
-
-  /* Ta med hela gruppen vid tredje plats – en delad tredjeplassare får inte
-     försvinna tyst. Alla med samma poäng som den tredje raden syns. */
-  const cutoff = ranked[Math.min(2, ranked.length - 1)].score;
-  const topPlayers = ranked.filter((player) => player.score >= cutoff);
-
-  const highestScore = ranked[0].score;
-  const showTieBreakers = ranked.filter((player) => player.score === highestScore).length > 1;
-
-  let previousScore = null;
-  let previousRank = 0;
-
-  const rows = topPlayers.map((player, index) => {
-    /* Tävlingsranking: 1, 1, 3 – delade platser får samma platsiffra */
-    const rank = player.score === previousScore ? previousRank : index + 1;
-    previousScore = player.score;
-    previousRank = rank;
-    const showElimination = showTieBreakers && player.score === highestScore;
-
-    return `
-        <li class="host-result__item host-result__item--${rank}">
-          <span class="host-result__rank">${rank}</span>
-          <span class="host-result__body">
-            <span class="host-result__name">${escapeHtml(player.name)}</span>
-            ${showElimination ? `
-            <span class="host-result__tie">
-              <span class="host-result__tie-label">Utslag</span>
-              <span>${escapeHtml(player.eliminationAnswer || '–')}</span>
-            </span>` : ''}
-          </span>
-          <strong class="host-result__score">${player.score}<span class="host-result__of">av ${questionCount}</span></strong>
-        </li>`;
-  }).join('');
-
-  return `
-    <h3>Topplista</h3>
-    <ol class="host-result__list">${rows}
-    </ol>`;
 }
 
 /* ---------- Setup-vy ---------- */
@@ -694,23 +249,17 @@ function setCount(next) {
 }
 
 function changeCount(delta) {
-  const next = clampCount(state.count + delta);
-  if (next === state.count && els.count.value !== String(state.count)) {
-    els.count.value = String(state.count);
-  }
-  setCount(next);
-  if (state.view === 'sheet') renderSheet();
+  setCount(state.count + delta);
   toast(state.count === MAX_COUNT ? `Max ${MAX_COUNT} frågor` : `${state.count} frågor`);
 }
 
 function readCountInput() {
   const digits = els.count.value.replace(/\D/g, '');
-  setCount(digits === '' ? MIN_COUNT : clampCount(Number(digits)));
+  setCount(digits === '' ? MIN_COUNT : Number(digits));
 }
 
-els.setupForm.addEventListener('submit', async (e) => {
+els.setupForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  if (state.setupMode !== 'create') return;
   state.name = els.name.value.trim();
   if (!state.name) {
     els.name.setCustomValidity('Namn krävs');
@@ -720,174 +269,9 @@ els.setupForm.addEventListener('submit', async (e) => {
     return;
   }
   readCountInput();
-
-  const startButton = e.submitter;
-  if (startButton) startButton.disabled = true;
-
-  try {
-    await prepareGame();
-  } catch (error) {
-    toast(`Kunde inte ansluta till spelet: ${error.message}`);
-    if (startButton) startButton.disabled = false;
-    return;
-  }
-
-  state.answers = {};
-  state.correctAnswers = {};
-  state.wrongAnswers = {};
-  state.eliminationAnswer = '';
-  state.current = 0;
-  state.view = 'host';
+  state.view = 'sheet';
   render();
   scrollToTop();
-  if (startButton) startButton.disabled = false;
-});
-
-els.copyGameCode.addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(state.gameCode);
-    setHostStatus('Spelkoden är kopierad.');
-  } catch {
-    setHostStatus(`Spelkod: ${state.gameCode}`);
-  }
-});
-
-els.endGame.addEventListener('click', async () => {
-  if (!state.gameId) return;
-
-  const waiting = hostTally.joined - hostTally.submitted;
-  const warning = waiting > 0
-    ? `${waiting} av ${hostTally.joined} har inte skickat in sitt resultat än och får inte med det.\n\n`
-    : '';
-  if (!confirm(`${warning}Avsluta spelet för alla? Det går inte att ångra.`)) return;
-
-  /* Knapparna och spelkoden går ur bilden direkt, så att det tydligt syns att
-     spelet avslutats. Om anropet misslyckas sätts vyn tillbaka. */
-  stopPolling();
-  setHostFinished(true);
-  setHostStatus('Avslutar spelet...');
-
-  try {
-    await apiRequest(`/games/${encodeURIComponent(state.gameId)}`, {
-      method: 'PATCH',
-      headers: { 'x-host-token': state.hostToken },
-      body: JSON.stringify({ status: 'inactive' }),
-    });
-    await showHostResult();
-  } catch (error) {
-    setHostStatus(`Kunde inte avsluta spelet: ${error.message}`);
-    setHostFinished(false);
-    if (state.gameStatus === 'active') startHostPolling();
-  }
-});
-
-els.hostNewGame.addEventListener('click', () => {
-  state.gameId = '';
-  state.gameCode = '';
-  state.hostToken = '';
-  state.setupMode = 'initial';
-  state.view = 'setup';
-  els.gameCode.value = '';
-  els.gameCodeStatus.textContent = '';
-  els.closedGameResult.hidden = true;
-  els.closedGameResult.innerHTML = '';
-  clearPlayerResult();
-  render();
-  scrollToTop();
-});
-
-els.createGame.addEventListener('click', () => {
-  state.setupMode = 'create';
-  state.gameId = '';
-  state.gameCode = '';
-  state.hostToken = '';
-  els.gameCode.value = '';
-  els.gameCodeStatus.textContent = 'Välj inställningar och tryck Starta.';
-  els.closedGameResult.hidden = true;
-  els.closedGameResult.innerHTML = '';
-  clearPlayerResult();
-  syncSetupMode();
-  save();
-  els.answerCount.focus();
-});
-
-els.cancelCreate.addEventListener('click', () => {
-  state.setupMode = 'initial';
-  state.gameId = '';
-  state.gameCode = '';
-  state.hostToken = '';
-  els.gameCode.value = '';
-  els.gameCodeStatus.textContent = '';
-  els.closedGameResult.hidden = true;
-  els.closedGameResult.innerHTML = '';
-  clearPlayerResult();
-  syncSetupMode();
-  save();
-  els.name.focus();
-});
-
-els.joinGame.addEventListener('click', async () => {
-  state.name = els.name.value.trim();
-  if (!state.name) {
-    els.name.setCustomValidity('Namn krävs');
-    els.name.reportValidity();
-    els.name.setCustomValidity('');
-    els.name.focus();
-    return;
-  }
-
-  const requestedCode = els.gameCode.value.trim().toUpperCase();
-  if (!requestedCode) {
-    els.gameCodeStatus.textContent = 'Skriv en spelkod först.';
-    els.gameCode.focus();
-    return;
-  }
-
-  els.joinGame.disabled = true;
-  els.gameCodeStatus.textContent = 'Hämtar spelet...';
-
-  try {
-    const game = await apiRequest(`/games/${encodeURIComponent(requestedCode)}`);
-    /* Ny koppling – glöm en eventuell gammal topplista från föregående spel */
-    clearPlayerResult();
-
-    if (game.status === 'inactive') {
-      state.gameId = String(game.gameId ?? requestedCode);
-      state.gameCode = String(game.gameCode ?? requestedCode);
-      state.gameStatus = 'inactive';
-      els.closedGameResult.hidden = false;
-      els.closedGameResult.innerHTML = `
-        <h3>Spelet är avslutat</h3>
-        ${renderLeaderboard(game.players, Number(game.questionCount) || state.count)}`;
-      els.gameCodeStatus.textContent = '';
-      return;
-    }
-
-    /* En hopplingad är aldrig värd – nollställ ev. gammal värdtoken */
-    state.hostToken = '';
-    applyGameSettings(game, true);
-    state.name = els.name.value.trim();
-    state.playerId = state.playerId || getPlayerId();
-    registerJoin();
-    state.answers = {};
-    state.correctAnswers = {};
-    state.wrongAnswers = {};
-    state.eliminationAnswer = '';
-    state.current = 0;
-    state.score = null;
-    state.scoreSubmitted = false;
-    els.closedGameResult.hidden = true;
-    els.closedGameResult.innerHTML = '';
-    state.view = 'sheet';
-    render();
-    scrollToTop();
-  } catch (error) {
-    const message = error.status === 404 ? error.message : `Kunde inte gå med i spelet: ${error.message}`;
-    els.gameCodeStatus.textContent = message;
-    toast(message);
-  } finally {
-    els.joinGame.disabled = false;
-  }
 });
 
 function resetAnswersForOptionChange() {
@@ -933,8 +317,6 @@ function renderSheet() {
   const total = state.count;
   state.current = clampIndex(state.current, total);
   state.answers = sanitizeAnswers(state.answers);
-  state.correctAnswers = sanitizeCorrectAnswers(state.correctAnswers);
-  state.wrongAnswers = sanitizeCorrectAnswers(state.wrongAnswers);
 
   els.whoName.textContent = displayName();
   els.whoAvatar.textContent = displayName().charAt(0);
@@ -945,10 +327,6 @@ function renderSheet() {
 
   els.totalCount.textContent = String(total);
   els.sheetCount.textContent = String(total);
-
-  /* Hopplingade spelare får inte ändra antalet frågor */
-  const countBlock = els.sheetMinus.closest('.toolbar__count');
-  if (countBlock) countBlock.hidden = state.setupMode === 'join';
   els.sheetPlus.disabled = total >= MAX_COUNT;
   els.sheetMinus.disabled = total <= MIN_COUNT;
 
@@ -991,7 +369,6 @@ function renderSheet() {
   els.questions.innerHTML = html.join('');
   updateProgress();
   paintCurrent();
-  document.title = `${answeredCount()}/${total} besvarade · Fredagsquiz`;
 }
 
 function updateProgress() {
@@ -1012,47 +389,34 @@ function paintCurrent() {
   }
 }
 
-/* Val av svar (klick + tangentbord via delegering) */
-els.questions.addEventListener('change', (e) => {
-  const input = e.target.closest('.opt input');
-  if (!input) return;
-  const card = input.closest('.q');
-  if (!card) return;
-  const idx = Number(card.dataset.index);
-  state.answers[idx] = input.value;
+function setAnswer(idx, value) {
+  if (value) state.answers[idx] = value;
+  else delete state.answers[idx];
   delete state.correctAnswers[idx];
   delete state.wrongAnswers[idx];
-  state.score = correctCount();
   state.current = idx;
   paintCurrent();
   updateProgress();
   save();
+}
+
+/* Val av svar (klick + tangentbord via delegering) */
+els.questions.addEventListener('change', (e) => {
+  const input = e.target.closest('.opt input');
+  const card = input?.closest('.q');
+  if (card) setAnswer(Number(card.dataset.index), input.value);
 });
 
 els.questions.addEventListener('input', (e) => {
   const eliminationInput = e.target.closest('.elimination-answer');
   if (eliminationInput) {
     state.eliminationAnswer = eliminationInput.value.trim().slice(0, 200);
-    state.scoreSubmitted = false;
     save();
     return;
   }
-
   const input = e.target.closest('.free-answer');
-  if (!input) return;
-  const card = input.closest('.q');
-  if (!card) return;
-  const idx = Number(card.dataset.index);
-  const value = input.value.trim();
-  if (value) state.answers[idx] = value.slice(0, 200);
-  else delete state.answers[idx];
-  delete state.correctAnswers[idx];
-  delete state.wrongAnswers[idx];
-  state.score = correctCount();
-  state.current = idx;
-  paintCurrent();
-  updateProgress();
-  save();
+  const card = input?.closest('.q');
+  if (card) setAnswer(Number(card.dataset.index), input.value.trim().slice(0, 200));
 });
 
 els.questions.addEventListener('pointerdown', (e) => {
@@ -1066,7 +430,7 @@ els.questions.addEventListener('pointerdown', (e) => {
   }
 });
 
-/* Tangentbord: A–D / 1–4 väljer svar, upp/ner byter fråga */
+/* Tangentbord: svarstangenter väljer svar, upp/ner byter fråga */
 document.addEventListener('keydown', (e) => {
   if (state.view !== 'sheet') return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1077,9 +441,7 @@ document.addEventListener('keydown', (e) => {
 
   const letter = keyMap()[e.key.toLowerCase()];
   if (letter) {
-    const input = els.questions.querySelector(
-      `.q[data-index="${state.current}"] input[value="${letter}"]`
-    );
+    const input = els.questions.querySelector(`.q[data-index="${state.current}"] input[value="${letter}"]`);
     if (!input) return;
     e.preventDefault();
     input.checked = true;
@@ -1087,12 +449,10 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'j') {
+  const moves = { ArrowDown: 1, ArrowRight: 1, j: 1, ArrowUp: -1, ArrowLeft: -1, k: -1 };
+  if (e.key in moves) {
     e.preventDefault();
-    goToQuestion(state.current + 1);
-  } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'k') {
-    e.preventDefault();
-    goToQuestion(state.current - 1);
+    goToQuestion(state.current + moves[e.key]);
   } else if (e.key === 'Home') {
     e.preventDefault();
     goToQuestion(0);
@@ -1105,16 +465,15 @@ document.addEventListener('keydown', (e) => {
 /* Antal frågor direkt i formuläret */
 els.sheetMinus.addEventListener('click', () => {
   if (state.count <= MIN_COUNT) return;
-  const removed = state.count - 1;
-  state.count = clampCount(removed);
-  delete state.answers[removed];
-  state.current = clampIndex(state.current, state.count);
+  state.count -= 1;
+  delete state.answers[state.count];
   renderSheet();
+  save();
 });
 
 els.sheetPlus.addEventListener('click', () => {
   if (state.count >= MAX_COUNT) return;
-  state.count = clampCount(state.count + 1);
+  state.count += 1;
   renderSheet();
   goToQuestion(state.count - 1);
 });
@@ -1125,7 +484,6 @@ els.backToSetup.addEventListener('click', () => {
   scrollToTop();
 });
 
-/* Skicka in */
 els.submitAnswers.addEventListener('click', () => {
   const missing = unanswered();
   if (missing.length > 0) {
@@ -1149,55 +507,6 @@ els.sendAnyway.addEventListener('click', () => {
   finish();
 });
 
-let scoreRetryPending = false;
-
-async function sendScore() {
-  if (state.scoreSubmitted || !state.gameId) return;
-
-  els.submitScore.disabled = true;
-  els.scoreStatus.textContent = 'Sparar resultat...';
-
-  try {
-    await apiRequest(`/games/${encodeURIComponent(state.gameId)}/scores`, {
-      method: 'POST',
-      body: JSON.stringify({
-        playerId: state.playerId || getPlayerId(),
-        name: displayName(),
-        score: state.score,
-        eliminationAnswer: state.eliminationAnswer,
-      }),
-    });
-    scoreRetryPending = false;
-    state.scoreSubmitted = true;
-    renderSummary();
-    save();
-    toast('Resultatet är sparat');
-  } catch (error) {
-    /* Spelet hann avslutas innan resultatet sparades (409) – visa slutresultatet direkt */
-    if (error.status === 409) {
-      scoreRetryPending = false;
-      els.submitScore.disabled = true;
-      els.scoreStatus.textContent = 'Spelet avslutades innan resultatet hann sparas.';
-      await showFinalResult();
-      return;
-    }
-
-    /* Nätverksfel/timeouts är tillfälliga – 4xx betyder att det aldrig går att spara */
-    const permanent = Number.isInteger(error.status) && error.status < 500;
-    scoreRetryPending = !permanent;
-    els.submitScore.disabled = permanent;
-    els.scoreStatus.textContent = permanent
-      ? `Kunde inte spara: ${error.message}`
-      : `Kunde inte spara: ${error.message}. Försöker igen när nätet är tillbaka.`;
-  }
-}
-
-els.submitScore.addEventListener('click', sendScore);
-
-window.addEventListener('online', () => {
-  if (scoreRetryPending && state.view === 'summary') sendScore();
-});
-
 function finish() {
   state.view = 'summary';
   render();
@@ -1205,33 +514,17 @@ function finish() {
   celebrate();
 }
 
-/* ---------- Sammanfattning ---------- */
+/* ---------- Sammanfattning / rättning ---------- */
 
 function renderSummary() {
-  const done = answeredCount();
   els.answerGrid.classList.toggle('answergrid--text', isFreeText());
-  /* Metarutorna är bortkommenterade i index.html – hoppa över om de saknas */
-  if (els.summaryMeta) {
-    const items = [
-      ['Deltagare', displayName()],
-      ['Spelkod', state.gameCode || '–'],
-      ['Besvarade', `${done} av ${state.count}`],
-    ];
-
-    els.summaryMeta.innerHTML = items.map(([key, val]) => `
-      <div class="meta__item">
-        <dt class="meta__key">${key}</dt>
-        <dd class="meta__val">${escapeHtml(val)}</dd>
-      </div>`).join('');
-  }
 
   els.answerGrid.innerHTML = Array.from({ length: state.count }, (_, i) => {
     const letter = state.answers[i];
-    const empty = !letter;
     const markedCorrect = Boolean(state.correctAnswers[i]);
     const markedWrong = Boolean(state.wrongAnswers[i]);
     const classes = [
-      empty ? 'ag--empty' : '',
+      letter ? '' : 'ag--empty',
       markedCorrect ? 'ag--correct' : '',
       markedWrong ? 'ag--wrong' : '',
     ].filter(Boolean).join(' ');
@@ -1257,53 +550,9 @@ function renderSummary() {
     ? `<li><span class="ag__num">Utslagsfråga.</span><span class="ag__letter ag__text">${escapeHtml(state.eliminationAnswer || '–')}</span></li>`
     : '';
 
-
-  document.title = 'Svar inskickade · Fredagsquiz';
-
-  /* Antal rätt räknas från markerade frågor */
+  document.title = 'Rättning · Fredagsquiz';
   els.scoreMax.textContent = String(state.count);
-  state.score = correctCount();
-  els.score.value = String(state.score);
-  els.submitScore.disabled = state.scoreSubmitted || !state.gameId;
-  els.scoreStatus.textContent = state.scoreSubmitted ? 'Resultatet är sparat.' : '';
-
-  watchForResult();
-}
-
-function showPlayerResult(game) {
-  els.playerResult.innerHTML = `<h3>Spelet är avslutat</h3>${renderLeaderboard(game.players, Number(game.questionCount) || state.count)}`;
-  els.playerResult.hidden = false;
-}
-
-function clearPlayerResult() {
-  els.playerResult.hidden = true;
-  els.playerResult.innerHTML = '';
-}
-
-/* Hämta och visa slutresultatet en gång – används när pollingen inte hunnit igång. */
-async function showFinalResult() {
-  if (!state.gameId) return false;
-  try {
-    const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
-    showPlayerResult(game);
-    return true;
-  } catch (error) {
-    els.scoreStatus.textContent = `Spelet är avslutat. Kunde inte hämta slutresultatet: ${error.message}`;
-    return false;
-  }
-}
-
-/* Spelaren väntar in topplistan – polla bara efter att resultatet är sparat. */
-function watchForResult() {
-  if (!state.scoreSubmitted || !state.gameId) return;
-
-  startPolling(async () => {
-    const game = await apiRequest(`/games/${encodeURIComponent(state.gameId)}`);
-    if (game.status !== 'inactive') return false;
-
-    showPlayerResult(game);
-    return true;
-  });
+  els.score.value = String(correctCount());
 }
 
 els.answerGrid.addEventListener('click', (e) => {
@@ -1312,7 +561,6 @@ els.answerGrid.addEventListener('click', (e) => {
   const idx = Number(btn.dataset.markIndex);
   const wasCorrect = Boolean(state.correctAnswers[idx]);
   const wasWrong = Boolean(state.wrongAnswers[idx]);
-  const wasSubmitted = state.scoreSubmitted;
 
   delete state.correctAnswers[idx];
   delete state.wrongAnswers[idx];
@@ -1321,19 +569,7 @@ els.answerGrid.addEventListener('click', (e) => {
   if (btn.dataset.mark === 'wrong' && !wasWrong) state.wrongAnswers[idx] = true;
 
   paintMark(idx);
-
-  state.score = correctCount();
-  els.score.value = String(state.score);
-  /* Ändrat efter att resultatet sparats → sluta polla tills det sparas igen */
-  stopPolling();
-  state.scoreSubmitted = false;
-  els.submitScore.disabled = !state.gameId;
-  if (wasSubmitted) {
-    els.scoreStatus.textContent = 'Du har ändrat dina rättningar – tryck Spara resultat igen.';
-    toast('Ändringen är inte sparad än');
-  } else {
-    els.scoreStatus.textContent = '';
-  }
+  els.score.value = String(correctCount());
   save();
 });
 
@@ -1356,44 +592,22 @@ els.editAnswers.addEventListener('click', () => {
 });
 
 els.restart.addEventListener('click', () => {
-  if (!confirm('Avsluta pågående svar och starta om formuläret?')) return;
-  state.name = '';
-  state.answerCount = 4;
-  state.answerDesign = 'letters';
-  state.eliminationQuestion = true;
-  state.eliminationAnswer = '';
+  if (!confirm('Rensa alla svar och börja om?')) return;
+  /* Namn och inställningar behålls – oftast samma upplägg nästa fredag */
   state.answers = {};
   state.correctAnswers = {};
   state.wrongAnswers = {};
-  state.score = null;
-  state.gameId = '';
-  state.gameCode = '';
-  state.hostToken = '';
-  state.setupMode = 'initial';
-  state.scoreSubmitted = false;
-  scoreRetryPending = false;
-  clearPlayerResult();
+  state.eliminationAnswer = '';
   state.current = 0;
-  state.count = 10;
   state.view = 'setup';
   render();
   scrollToTop();
 });
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (ch) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
-  ));
-}
-
-function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-}
-
 /* ---------- Confetti ---------- */
 
 function celebrate() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (reducedMotion()) return;
 
   const canvas = els.confetti;
   const ctx = canvas.getContext('2d');
@@ -1451,23 +665,6 @@ load();
 
 const preset = countFromUrl();
 if (preset !== null) state.count = preset;
-
-/* QR-länk: ?kod=ABCDE → förifyll spelkoden och öppna uppstarten */
-const joinCode = codeFromUrl();
-if (joinCode) {
-  state.gameCode = joinCode;
-  state.view = 'setup';
-  state.setupMode = 'initial';
-  try {
-    const clean = new URL(location.href);
-    clean.searchParams.delete('kod');
-    clean.searchParams.delete('code');
-    history.replaceState(null, '', clean.pathname + clean.search + clean.hash);
-  } catch {
-    /* history kan vara otillgängligt – spelkoden är ändå ifylld */
-  }
-}
-
 state.current = clampIndex(state.current, state.count);
 
 render();

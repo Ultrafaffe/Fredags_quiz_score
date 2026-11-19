@@ -43,23 +43,8 @@
                  placeholder="t.ex. Anna" autocomplete="name" spellcheck="false" required>
         </div>
 
-        <div class="field">
-          <label class="field__label" id="game-code-label" for="game-code">Spelkod</label>
-          <div class="game-code-row" id="game-code-row">
-            <input class="input" type="text" id="game-code" name="game-code" maxlength="5"
-                   placeholder="Skriv kod f&ouml;r att g&aring; med" autocomplete="off" spellcheck="false">
-            <button class="btn btn--primary btn--lg" type="button" id="create-game">
-              Skapa nytt spel
-            </button>
-            <button class="btn btn--primary btn--lg" type="button" id="join-game">
-              G&aring; med
-            </button>
-          </div>
-          <p class="field__hint" id="game-code-status" aria-live="polite"></p>
-        </div>
-        <div class="host-result" id="closed-game-result" hidden></div>
 
-        <div id="game-settings" hidden>
+        <div id="game-settings">
           <div class="field" id="answer-count-field">
             <label class="field__label" for="answer-count">Antal svarsalternativ</label>
             <input class="input" type="number" id="answer-count" name="answer-count"
@@ -103,55 +88,13 @@
           </div>
         </div>
 
-        <div class="actions actions--wrap" id="start-actions" hidden>
-          <button class="btn btn--ghost btn--lg" type="button" id="cancel-create">
-            Avbryt
-          </button>
+        <div class="actions actions--wrap" id="start-actions">
           <button class="btn btn--primary btn--lg" type="submit">
             Starta
           </button>
         </div>
       </form>
-    </section>
-
-    <!-- 2. Värdvy -->
-    <section class="panel panel--host" id="view-host" aria-labelledby="host-title" hidden>
-      <div class="panel__intro">
-        <p class="panel__eyebrow">Värd för spelet</p>
-        <h2 class="panel__title" id="host-title">Dela spelkoden</h2>
-      </div>
-
-      <div class="host-share">
-        <div class="host-code" aria-live="polite">
-          <span class="host-code__label">Spelkod</span>
-          <strong class="host-code__value" id="host-game-code">-----</strong>
-        </div>
-
-        <div class="host-qr" id="host-qr" hidden>
-          <div class="host-qr__code" id="host-qr-code" aria-hidden="true"></div>
-          <p class="host-qr__text">Skanna för att gå med</p>
-        </div>
-
-        <p class="host-qr-note" id="host-qr-note" hidden></p>
-      </div>
-
-      <div class="actions actions--wrap host-actions">
-        <button class="btn btn--primary btn--lg host-actions__copy" type="button" id="copy-game-code">Kopiera kod</button>
-        <button class="btn btn--ghost btn--lg host-actions__end" type="button" id="end-game">Avsluta spel</button>
-        <button class="btn btn--ghost btn--lg host-actions__new" type="button" id="host-new-game">Nytt spel</button>
-      </div>
-
-      <section class="host-players" id="host-players" aria-labelledby="host-players-title" hidden>
-        <h3 class="host-players__title" id="host-players-title">
-          Med i spelet
-          <span class="host-players__count" id="host-players-count">0</span>
-        </h3>
-        <p class="host-players__progress" id="host-players-progress" aria-live="polite"></p>
-        <ul class="host-players__list" id="host-players-list"></ul>
-      </section>
-
-      <div class="host-result" id="host-result" hidden></div>
-      <p class="summary__note host-status" id="host-status"></p>
+      <p class="field__hint"><a href="live/">Hålla i ett live-quiz med spelkod? &rarr;</a></p>
     </section>
 
     <!-- 2. Svarsformulär -->
@@ -239,13 +182,9 @@
 
       <div class="actions actions--wrap">
         <button class="btn btn--ghost" type="button" id="edit-answers">Redigera svar</button>
-        <button class="btn btn--primary" type="button" id="submit-score">Spara resultat</button>
-        <button class="btn btn--quiet" type="button" id="restart">Nytt spel</button>
+        <button class="btn btn--quiet" type="button" id="restart">Börja om</button>
       </div>
 
-      <p class="summary__note" id="summary-note"></p>
-      <p class="summary__note" id="score-status"></p>
-      <div class="host-result" id="player-result" hidden></div>
     </section>
 
   </main>
@@ -253,7 +192,6 @@
   <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="qrcode.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

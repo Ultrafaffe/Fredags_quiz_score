@@ -1547,6 +1547,175 @@ kbd {
 
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
 
+/* ---------- Live-quiz (live/) ---------- */
+
+/* Alternativens färger – vit text, mörka nog för kontrast. Bokstaven bär
+   informationen också, så färgen är aldrig enda ledtråden. */
+.live-opt--0 { --opt: #c62a2f; }
+.live-opt--1 { --opt: #2f62d6; }
+.live-opt--2 { --opt: #9a6100; }
+.live-opt--3 { --opt: #1f8a55; }
+.live-opt--4 { --opt: #7a3fb0; }
+.live-opt--5 { --opt: #0f7f7a; }
+
+.live-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.live-editor {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live-editor__q {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.live-editor__head { display: flex; align-items: center; gap: 12px; }
+.live-editor__head .input { flex: 1; min-width: 0; }
+
+.live-editor__opts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.live-editor__opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 10px;
+  border-left: 6px solid var(--opt);
+  border-radius: var(--radius-sm);
+}
+
+.live-editor__opt .input { flex: 1; min-width: 0; }
+.live-editor__opt input[type="radio"] { width: 22px; height: 22px; accent-color: var(--ok); flex: none; }
+
+.live-editor__tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+
+.live-question__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.live-question__text {
+  margin: 4px 0 20px;
+  font-size: clamp(1.4rem, 4.4vw, 2.4rem);
+  line-height: 1.2;
+}
+
+.live-countdown {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.6em;
+  height: 2.6em;
+  font: 700 1.3rem/1 var(--font-display);
+  color: var(--brand-ink);
+  background: linear-gradient(135deg, var(--brand-light), var(--brand));
+  border-radius: 999px;
+}
+
+.live-countdown--low { background: var(--bad); color: #fff; }
+
+.live-options,
+.live-answers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live-option,
+.live-answer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px 18px;
+  overflow: hidden;
+  font: 600 clamp(1.05rem, 2.6vw, 1.35rem)/1.25 var(--font-body);
+  color: #fff;
+  text-align: left;
+  background: var(--opt);
+  border: 0;
+  border-radius: var(--radius);
+}
+
+.live-option__letter {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  font-family: var(--font-display);
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+}
+
+.live-answer { min-height: 88px; cursor: pointer; transition: transform 0.12s, opacity 0.2s; }
+.live-answer:active:not(:disabled) { transform: scale(0.97); }
+.live-answer:focus-visible { outline: 3px solid var(--brand-light); outline-offset: 3px; }
+.live-answer:disabled { cursor: default; opacity: 0.35; }
+.live-answer.is-chosen { opacity: 1; box-shadow: 0 0 0 4px var(--text); }
+
+/* Reveal: fel alternativ tonas ner, staplarna visar hur många som valde vad */
+.live-options--reveal .live-option { opacity: 0.45; }
+.live-options--reveal .live-option--correct { opacity: 1; box-shadow: 0 0 0 4px var(--ok); }
+.live-option__text { position: relative; flex: 1; }
+.live-option__count { position: relative; font-family: var(--font-display); }
+
+.live-option__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--share, 0) * 100%);
+  background: rgba(255, 255, 255, 0.18);
+  transition: width 0.6s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+.live-option__letter { position: relative; }
+
+.live-tally,
+.live-standing {
+  margin: 16px 0 0;
+  font-weight: 600;
+  text-align: center;
+  color: var(--muted);
+}
+
+.live-standing { font-size: 1.2rem; color: var(--text); }
+
+.live-verdict { margin: 4px 0 8px; }
+.live-verdict--ok { color: var(--ok); }
+.live-verdict--bad { color: var(--bad); }
+
+.live-me .host-result__name { color: var(--brand-light); }
+
+#host-stage .host-result { margin-top: 24px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .live-answer,
+  .live-option__bar { transition: none; }
+}
+
 /* ---------- Responsivt ---------- */
 
 @media (max-width: 620px) {
