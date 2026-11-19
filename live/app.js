@@ -44,7 +44,6 @@ const els = {
   editorBack: $('#editor-back'),
   createGame: $('#create-game'),
   hostLobby: $('#host-lobby'),
-  hostQuizTitle: $('#host-quiz-title'),
   hostGameCode: $('#host-game-code'),
   hostQr: $('#host-qr'),
   hostQrCode: $('#host-qr-code'),
@@ -606,9 +605,9 @@ function renderHostQr() {
 function renderHostPlayers() {
   const joined = game.joined ?? [];
   els.hostPlayersCount.textContent = String(joined.length);
-  els.hostPlayersList.innerHTML = joined.map((player) => `
+  els.hostPlayersList.innerHTML = joined.map((player, i) => `
       <li class="host-players__item">
-        <span class="host-players__avatar" aria-hidden="true">${escapeHtml(player.name.charAt(0))}</span>
+        <span class="host-players__avatar magnet--${i % 6}" aria-hidden="true">${escapeHtml(player.name.charAt(0))}</span>
         <span class="host-players__name">${escapeHtml(player.name)}</span>
       </li>`).join('');
 }
@@ -625,7 +624,6 @@ function renderHost() {
     const key = `lobby:${game.gameId}`;
     if (renderedKey !== key) {
       els.hostGameCode.textContent = game.gameCode ?? state.gameId;
-      els.hostQuizTitle.textContent = game.title || 'Värd';
       renderHostQr();
       document.title = `Spelkod ${state.gameId} · Fredagsquiz`;
       renderedKey = key;
@@ -670,8 +668,7 @@ function hostStageHtml() {
   if (game.phase === 'finished') {
     return `
       <div class="host-result live-final">
-        <p class="panel__eyebrow">${escapeHtml(game.title || 'Fredagsquiz')}</p>
-        ${renderLeaderboard(game.leaderboard)}
+        ${renderLeaderboard(game.leaderboard, escapeHtml(game.title || 'Topplista'))}
       </div>`;
   }
 
@@ -883,11 +880,12 @@ function renderLeaderboard(rows, heading = 'Topplista') {
   const list = Array.isArray(rows) ? rows : [];
   if (list.length === 0) return `<h3>${heading}</h3><p>Ingen har gått med i spelet.</p>`;
 
+  const joined = game?.joined ?? [];
   const items = list.map((row) => `
         <li class="host-result__item host-result__item--${row.rank}${row.playerId === state.playerId ? ' live-me' : ''}">
           <span class="host-result__rank">${row.rank}</span>
           <span class="host-result__body">
-            <span class="host-result__name">${escapeHtml(row.name)}</span>
+            <span class="host-result__name"><span class="host-players__avatar magnet--${Math.max(0, joined.findIndex((p) => p.playerId === row.playerId)) % 6}" aria-hidden="true">${escapeHtml(row.name.charAt(0))}</span>${escapeHtml(row.name)}</span>
           </span>
           <strong class="host-result__score">${row.score}<span class="host-result__of">p</span></strong>
         </li>`).join('');
@@ -930,7 +928,7 @@ function celebrate() {
 
   const canvas = els.confetti;
   const ctx = canvas.getContext('2d');
-  const colors = ['#ffa600', '#ffc15a', '#e07b00', '#ff8a00', '#f9f7f4'];
+  const colors = ['#ffe45c', '#ffa3c6', '#93d4ff', '#b9ef9c', '#ffbd6b', '#cfbcff'];
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   const resize = () => {

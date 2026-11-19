@@ -1,0 +1,554 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T12:47:39+00:00",
+  "title": "Design System: Fredagsquiz",
+  "extensions": {
+    "colorMeta": {
+      "marker-blue": {
+        "role": "primary",
+        "displayName": "Blue Marker",
+        "canonical": "oklch(46.3% 0.204 265.1)",
+        "tonalRamp": [
+          "oklch(15% 0.114 265.1)",
+          "oklch(26% 0.147 265.1)",
+          "oklch(38% 0.179 265.1)",
+          "oklch(49% 0.195 265.1)",
+          "oklch(61% 0.162 265.1)",
+          "oklch(72% 0.130 265.1)",
+          "oklch(84% 0.097 265.1)",
+          "oklch(95% 0.065 265.1)"
+        ]
+      },
+      "marker-blue-wash": {
+        "role": "primary",
+        "displayName": "Blue Marker Wash"
+      },
+      "tick-green": {
+        "role": "tertiary",
+        "displayName": "Tick Green",
+        "canonical": "oklch(51.1% 0.122 154.3)",
+        "tonalRamp": [
+          "oklch(15% 0.060 154.3)",
+          "oklch(26% 0.080 154.3)",
+          "oklch(38% 0.099 154.3)",
+          "oklch(49% 0.119 154.3)",
+          "oklch(61% 0.106 154.3)",
+          "oklch(72% 0.086 154.3)",
+          "oklch(84% 0.067 154.3)",
+          "oklch(95% 0.047 154.3)"
+        ]
+      },
+      "tick-green-wash": {
+        "role": "tertiary",
+        "displayName": "Tick Green Wash"
+      },
+      "strike-red": {
+        "role": "tertiary",
+        "displayName": "Strike Red",
+        "canonical": "oklch(54.0% 0.198 28.8)",
+        "tonalRamp": [
+          "oklch(15% 0.090 28.8)",
+          "oklch(26% 0.122 28.8)",
+          "oklch(38% 0.153 28.8)",
+          "oklch(49% 0.185 28.8)",
+          "oklch(61% 0.179 28.8)",
+          "oklch(72% 0.148 28.8)",
+          "oklch(84% 0.116 28.8)",
+          "oklch(95% 0.084 28.8)"
+        ]
+      },
+      "strike-red-wash": {
+        "role": "tertiary",
+        "displayName": "Strike Red Wash"
+      },
+      "note-yellow": {
+        "role": "secondary",
+        "displayName": "Post-It Yellow",
+        "canonical": "oklch(91.7% 0.155 98.0)",
+        "tonalRamp": [
+          "oklch(15% 0.039 98.0)",
+          "oklch(26% 0.039 98.0)",
+          "oklch(38% 0.039 98.0)",
+          "oklch(49% 0.063 98.0)",
+          "oklch(61% 0.088 98.0)",
+          "oklch(72% 0.112 98.0)",
+          "oklch(84% 0.137 98.0)",
+          "oklch(95% 0.148 98.0)"
+        ]
+      },
+      "note-pink": {
+        "role": "secondary",
+        "displayName": "Post-It Pink",
+        "canonical": "oklch(81.7% 0.116 355.6)",
+        "tonalRamp": [
+          "oklch(15% 0.029 355.6)",
+          "oklch(26% 0.029 355.6)",
+          "oklch(38% 0.045 355.6)",
+          "oklch(49% 0.064 355.6)",
+          "oklch(61% 0.082 355.6)",
+          "oklch(72% 0.101 355.6)",
+          "oklch(84% 0.113 355.6)",
+          "oklch(95% 0.095 355.6)"
+        ]
+      },
+      "note-blue": {
+        "role": "secondary",
+        "displayName": "Post-It Blue",
+        "canonical": "oklch(84.2% 0.089 238.2)",
+        "tonalRamp": [
+          "oklch(15% 0.022 238.2)",
+          "oklch(26% 0.022 238.2)",
+          "oklch(38% 0.031 238.2)",
+          "oklch(49% 0.046 238.2)",
+          "oklch(61% 0.060 238.2)",
+          "oklch(72% 0.074 238.2)",
+          "oklch(84% 0.089 238.2)",
+          "oklch(95% 0.076 238.2)"
+        ]
+      },
+      "note-green": {
+        "role": "secondary",
+        "displayName": "Post-It Green",
+        "canonical": "oklch(89.5% 0.123 135.1)",
+        "tonalRamp": [
+          "oklch(15% 0.031 135.1)",
+          "oklch(26% 0.031 135.1)",
+          "oklch(38% 0.034 135.1)",
+          "oklch(49% 0.054 135.1)",
+          "oklch(61% 0.073 135.1)",
+          "oklch(72% 0.093 135.1)",
+          "oklch(84% 0.112 135.1)",
+          "oklch(95% 0.113 135.1)"
+        ]
+      },
+      "note-orange": {
+        "role": "secondary",
+        "displayName": "Post-It Orange",
+        "canonical": "oklch(84.3% 0.125 70.7)",
+        "tonalRamp": [
+          "oklch(15% 0.031 70.7)",
+          "oklch(26% 0.031 70.7)",
+          "oklch(38% 0.044 70.7)",
+          "oklch(49% 0.064 70.7)",
+          "oklch(61% 0.084 70.7)",
+          "oklch(72% 0.104 70.7)",
+          "oklch(84% 0.124 70.7)",
+          "oklch(95% 0.106 70.7)"
+        ]
+      },
+      "note-lilac": {
+        "role": "secondary",
+        "displayName": "Post-It Lilac",
+        "canonical": "oklch(83.4% 0.094 297.3)",
+        "tonalRamp": [
+          "oklch(15% 0.024 297.3)",
+          "oklch(26% 0.024 297.3)",
+          "oklch(38% 0.034 297.3)",
+          "oklch(49% 0.049 297.3)",
+          "oklch(61% 0.064 297.3)",
+          "oklch(72% 0.080 297.3)",
+          "oklch(84% 0.094 297.3)",
+          "oklch(95% 0.079 297.3)"
+        ]
+      },
+      "magnet-amber": {
+        "role": "tertiary",
+        "displayName": "Magnet Amber",
+        "canonical": "oklch(75.5% 0.156 82.2)",
+        "tonalRamp": [
+          "oklch(15% 0.039 82.2)",
+          "oklch(26% 0.049 82.2)",
+          "oklch(38% 0.074 82.2)",
+          "oklch(49% 0.098 82.2)",
+          "oklch(61% 0.123 82.2)",
+          "oklch(72% 0.148 82.2)",
+          "oklch(84% 0.138 82.2)",
+          "oklch(95% 0.113 82.2)"
+        ]
+      },
+      "magnet-violet": {
+        "role": "tertiary",
+        "displayName": "Magnet Violet",
+        "canonical": "oklch(48.6% 0.181 295.6)",
+        "tonalRamp": [
+          "oklch(15% 0.096 295.6)",
+          "oklch(26% 0.125 295.6)",
+          "oklch(38% 0.154 295.6)",
+          "oklch(49% 0.180 295.6)",
+          "oklch(61% 0.151 295.6)",
+          "oklch(72% 0.122 295.6)",
+          "oklch(84% 0.093 295.6)",
+          "oklch(95% 0.064 295.6)"
+        ]
+      },
+      "magnet-black": {
+        "role": "tertiary",
+        "displayName": "Magnet Black",
+        "canonical": "oklch(26.0% 0.016 264.2)",
+        "tonalRamp": [
+          "oklch(15% 0.014 264.2)",
+          "oklch(26% 0.016 264.2)",
+          "oklch(38% 0.013 264.2)",
+          "oklch(49% 0.011 264.2)",
+          "oklch(61% 0.008 264.2)",
+          "oklch(72% 0.006 264.2)",
+          "oklch(84% 0.004 264.2)",
+          "oklch(95% 0.004 264.2)"
+        ]
+      },
+      "black-marker": {
+        "role": "neutral",
+        "displayName": "Black Marker",
+        "canonical": "oklch(23.9% 0.014 267.0)",
+        "tonalRamp": [
+          "oklch(15% 0.012 267.0)",
+          "oklch(26% 0.014 267.0)",
+          "oklch(38% 0.011 267.0)",
+          "oklch(49% 0.009 267.0)",
+          "oklch(61% 0.007 267.0)",
+          "oklch(72% 0.005 267.0)",
+          "oklch(84% 0.004 267.0)",
+          "oklch(95% 0.004 267.0)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "oklch(43.4% 0.026 265.5)",
+        "tonalRamp": [
+          "oklch(15% 0.016 265.5)",
+          "oklch(26% 0.020 265.5)",
+          "oklch(38% 0.024 265.5)",
+          "oklch(49% 0.024 265.5)",
+          "oklch(61% 0.020 265.5)",
+          "oklch(72% 0.016 265.5)",
+          "oklch(84% 0.012 265.5)",
+          "oklch(95% 0.007 265.5)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "oklch(49.9% 0.024 264.3)",
+        "tonalRamp": [
+          "oklch(15% 0.012 264.3)",
+          "oklch(26% 0.016 264.3)",
+          "oklch(38% 0.020 264.3)",
+          "oklch(49% 0.024 264.3)",
+          "oklch(61% 0.020 264.3)",
+          "oklch(72% 0.016 264.3)",
+          "oklch(84% 0.013 264.3)",
+          "oklch(95% 0.009 264.3)"
+        ]
+      },
+      "ghost-ink": {
+        "role": "neutral",
+        "displayName": "Ghost Ink"
+      },
+      "board": {
+        "role": "neutral",
+        "displayName": "Board",
+        "canonical": "oklch(97.5% 0.004 121.6)",
+        "tonalRamp": [
+          "oklch(15% 0.001 121.6)",
+          "oklch(26% 0.001 121.6)",
+          "oklch(38% 0.001 121.6)",
+          "oklch(49% 0.001 121.6)",
+          "oklch(61% 0.002 121.6)",
+          "oklch(72% 0.003 121.6)",
+          "oklch(84% 0.003 121.6)",
+          "oklch(95% 0.004 121.6)"
+        ]
+      },
+      "board-gloss": {
+        "role": "neutral",
+        "displayName": "Board Gloss",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(38% 0.000 89.9)",
+          "oklch(49% 0.000 89.9)",
+          "oklch(61% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "aluminium": {
+        "role": "neutral",
+        "displayName": "Aluminium",
+        "canonical": "oklch(83.2% 0.010 232.4)",
+        "tonalRamp": [
+          "oklch(15% 0.002 232.4)",
+          "oklch(26% 0.002 232.4)",
+          "oklch(38% 0.003 232.4)",
+          "oklch(49% 0.005 232.4)",
+          "oklch(61% 0.007 232.4)",
+          "oklch(72% 0.008 232.4)",
+          "oklch(84% 0.009 232.4)",
+          "oklch(95% 0.008 232.4)"
+        ]
+      },
+      "office-wall": {
+        "role": "neutral",
+        "displayName": "Office Wall",
+        "canonical": "oklch(33.4% 0.038 179.5)",
+        "tonalRamp": [
+          "oklch(15% 0.028 179.5)",
+          "oklch(26% 0.034 179.5)",
+          "oklch(38% 0.035 179.5)",
+          "oklch(49% 0.029 179.5)",
+          "oklch(61% 0.023 179.5)",
+          "oklch(72% 0.017 179.5)",
+          "oklch(84% 0.011 179.5)",
+          "oklch(95% 0.009 179.5)"
+        ]
+      },
+      "office-wall-lit": {
+        "role": "neutral",
+        "displayName": "Office Wall, Lit",
+        "canonical": "oklch(40.1% 0.045 178.4)",
+        "tonalRamp": [
+          "oklch(15% 0.029 178.4)",
+          "oklch(26% 0.036 178.4)",
+          "oklch(38% 0.044 178.4)",
+          "oklch(49% 0.039 178.4)",
+          "oklch(61% 0.032 178.4)",
+          "oklch(72% 0.025 178.4)",
+          "oklch(84% 0.018 178.4)",
+          "oklch(95% 0.011 178.4)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The game code only, in blue, tilted, written in from the left."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Panel titles."
+      },
+      "question": {
+        "displayName": "Question",
+        "purpose": "Live question text; up to 3.6rem on the host TV."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section titles and the primary post-it button."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, progress note, QR caption, player tag."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text; 16px on phones; leads cap at 60ch."
+      },
+      "body-strong": {
+        "displayName": "Body Strong",
+        "purpose": "Ghost buttons, answer text, player names."
+      },
+      "hint": {
+        "displayName": "Hint",
+        "purpose": "Helper text and meta in muted ink."
+      }
+    },
+    "shadows": [
+      {
+        "name": "note-rest",
+        "value": "0 1px 1px rgba(0,0,0,0.12), 0 10px 14px -8px rgba(0,0,0,0.45)",
+        "purpose": "Every post-it at rest."
+      },
+      {
+        "name": "note-lift",
+        "value": "0 2px 2px rgba(0,0,0,0.10), 0 18px 22px -10px rgba(0,0,0,0.45)",
+        "purpose": "Post-it on hover, toast, correct answer at reveal."
+      },
+      {
+        "name": "magnet",
+        "value": "0 2px 2px rgba(0,0,0,0.25), 0 5px 8px -2px rgba(0,0,0,0.35)",
+        "purpose": "Player magnets and counter magnets."
+      },
+      {
+        "name": "board-on-wall",
+        "value": "inset 0 0 0 1px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.3), 0 30px 50px -20px rgba(0,0,0,0.6)",
+        "purpose": "The board panel only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "write",
+        "value": "clip-path sweep left to right, 0.5-0.9s cubic-bezier(0.3, 0.7, 0.3, 1)",
+        "purpose": "Game code, verdicts and rings writing themselves in."
+      },
+      {
+        "name": "draw-x",
+        "value": "scaleX 0 to 1 from left, 0.25-0.35s ease-out",
+        "purpose": "Red strikes through wrong answers."
+      },
+      {
+        "name": "snap-on",
+        "value": "0.35s cubic-bezier(0.16, 1, 0.3, 1), from translateY(-10px) scale(1.15)",
+        "purpose": "A magnet landing on the board when a player joins."
+      },
+      {
+        "name": "lift",
+        "value": "0.15s transform and box-shadow",
+        "purpose": "Post-it hover lift and press."
+      },
+      {
+        "name": "nudge",
+        "value": "1s ease-in-out infinite, rotate -6deg scale 1.08",
+        "purpose": "Countdown in its last seconds."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all animation and transition durations 0.001ms",
+        "purpose": "prefers-reduced-motion shows end states only."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "360px"
+      },
+      {
+        "name": "phone",
+        "value": "620px"
+      },
+      {
+        "name": "tv-reveal",
+        "value": "1100px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (post-it)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The main action on every screen: a yellow post-it with marker text.",
+      "html": "<button class=\"ds-btn-primary\">Starta quiz</button>",
+      "css": ".ds-btn-primary { font-family: var(--font-marker, 'Permanent Marker', cursive); font-size: 1.35rem; padding: 16px 30px 18px; color: #1c1f26; border: 0; border-radius: 1px; background: linear-gradient(180deg, rgba(0,0,0,0.05), transparent 22%), linear-gradient(315deg, rgba(0,0,0,0.07), transparent 14%), var(--note-yellow, #ffe45c); box-shadow: var(--note-shadow, 0 1px 1px rgba(0,0,0,0.12), 0 10px 14px -8px rgba(0,0,0,0.45)); transform: rotate(-1.5deg); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; } .ds-btn-primary:hover { box-shadow: 0 2px 2px rgba(0,0,0,0.10), 0 18px 22px -10px rgba(0,0,0,0.45); transform: rotate(0deg) translateY(-3px); } .ds-btn-primary:active { transform: rotate(0deg) translateY(1px); } .ds-btn-primary:focus-visible { outline: 3px solid #1f48c8; outline-offset: 4px; }"
+    },
+    {
+      "name": "Ghost Button (drawn box)",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary actions drawn on the board with a hand-drawn outline.",
+      "html": "<button class=\"ds-btn-ghost\">Kopiera länk</button>",
+      "css": ".ds-btn-ghost { font-family: var(--font-body, 'Atkinson Hyperlegible Next', system-ui, sans-serif); font-weight: 700; font-size: 1.05rem; line-height: 1.1; padding: 12px 22px; color: #1c1f26; background: transparent; border: 2.5px solid #1c1f26; border-radius: 255px 12px 225px 12px / 12px 225px 12px 255px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s; } .ds-btn-ghost:hover { color: #1f48c8; border-color: #1f48c8; background: rgba(31,72,200,0.10); } .ds-btn-ghost:active { transform: translateY(1px); } .ds-btn-ghost:focus-visible { outline: 3px solid #1f48c8; outline-offset: 4px; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Leave or end actions as underlined soft ink.",
+      "html": "<button class=\"ds-btn-quiet\">Avsluta spel</button>",
+      "css": ".ds-btn-quiet { font-family: var(--font-body, 'Atkinson Hyperlegible Next', system-ui, sans-serif); font-weight: 700; font-size: 1.05rem; padding: 12px 22px; color: #4a5160; background: transparent; border: 0; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; cursor: pointer; } .ds-btn-quiet:hover { text-decoration-style: wavy; } .ds-btn-quiet:focus-visible { outline: 3px solid #1f48c8; outline-offset: 4px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Field written on the board with a marker label.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field__label\">Ditt namn</span><input class=\"ds-input\" placeholder=\"Skriv ditt namn\"></label>",
+      "css": ".ds-field { display: grid; gap: 6px; } .ds-field__label { font-family: var(--font-marker, 'Permanent Marker', cursive); font-size: 1.2rem; color: #1c1f26; } .ds-input { font-family: var(--font-body, 'Atkinson Hyperlegible Next', system-ui, sans-serif); font-size: 1.1rem; padding: 13px 16px; color: #1c1f26; background: #fff; border: 2.5px solid rgba(28,31,38,0.55); border-radius: 6px 12px 7px 14px / 14px 7px 12px 6px; transition: border-color 0.15s, box-shadow 0.15s; } .ds-input::placeholder { color: #6b717d; } .ds-input:hover { border-color: #1c1f26; } .ds-input:focus-visible { outline: none; border-color: #1f48c8; box-shadow: 0 0 0 4px rgba(31,72,200,0.10); }"
+    },
+    {
+      "name": "Number Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Quick picks written on the board; the selected one is ringed in blue.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip\">10</button><button class=\"ds-chip\" aria-pressed=\"true\">20</button><button class=\"ds-chip\">30</button></div>",
+      "css": ".ds-chips { display: flex; gap: 6px; } .ds-chip { font-family: var(--font-marker, 'Permanent Marker', cursive); font-size: 1.3rem; line-height: 1; min-width: 50px; height: 46px; padding: 0 8px; color: #4a5160; background: transparent; border: 3px solid transparent; border-radius: 52% 46% 50% 48% / 46% 52% 48% 50%; cursor: pointer; transition: color 0.15s, border-color 0.15s; } .ds-chip:hover { color: #1c1f26; border-color: rgba(28,31,38,0.16); } .ds-chip[aria-pressed=\"true\"] { color: #1f48c8; border-color: #1f48c8; } .ds-chip:focus-visible { outline: 3px solid #1f48c8; outline-offset: 2px; }"
+    },
+    {
+      "name": "Answer Post-it",
+      "kind": "custom",
+      "refersTo": "answer-note",
+      "description": "Signature: each answer option is a coloured post-it with a ringed marker letter; chosen gets a blue ring.",
+      "html": "<button class=\"ds-answer\"><span class=\"ds-answer__letter\">A</span><span>1943</span></button><button class=\"ds-answer ds-answer--pink is-chosen\"><span class=\"ds-answer__letter\">B</span><span>1958</span></button>",
+      "css": ".ds-answer { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 96px; margin: 0 0 18px; padding: 16px 20px; font-family: var(--font-body, 'Atkinson Hyperlegible Next', system-ui, sans-serif); font-weight: 700; font-size: 1.3rem; color: #1c1f26; text-align: left; border: 0; border-radius: 1px; background: linear-gradient(180deg, rgba(0,0,0,0.05), transparent 22%), linear-gradient(315deg, rgba(0,0,0,0.07), transparent 14%), var(--note-yellow, #ffe45c); box-shadow: var(--note-shadow, 0 1px 1px rgba(0,0,0,0.12), 0 10px 14px -8px rgba(0,0,0,0.45)); transform: rotate(-1deg); cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; } .ds-answer--pink { background: linear-gradient(180deg, rgba(0,0,0,0.05), transparent 22%), #ffa3c6; transform: rotate(0.8deg); } .ds-answer:hover { transform: translateY(-3px); box-shadow: 0 2px 2px rgba(0,0,0,0.10), 0 18px 22px -10px rgba(0,0,0,0.45); } .ds-answer:focus-visible { outline: 4px solid #1f48c8; outline-offset: 4px; } .ds-answer.is-chosen { transform: none; box-shadow: 0 10px 14px -8px rgba(0,0,0,0.45), 0 0 0 5px #f6f7f4, 0 0 0 9px #1f48c8; } .ds-answer__letter { display: inline-grid; place-items: center; flex: none; width: 46px; height: 46px; font-family: var(--font-marker, 'Permanent Marker', cursive); font-size: 1.5rem; border: 3px solid currentColor; border-radius: 52% 46% 50% 48% / 46% 52% 48% 50%; } .ds-answer.is-chosen .ds-answer__letter { color: #1f48c8; }"
+    },
+    {
+      "name": "Player Magnets",
+      "kind": "custom",
+      "refersTo": "magnet",
+      "description": "Players as round coloured magnets with a marker initial, colour by join order.",
+      "html": "<ul class=\"ds-magnets\"><li><span class=\"ds-magnet\">A</span>Anna</li><li><span class=\"ds-magnet\" style=\"--magnet:#1f48c8\">B</span>Björn</li><li><span class=\"ds-magnet\" style=\"--magnet:#e0a400;color:#1c1f26\">D</span>David</li></ul>",
+      "css": ".ds-magnets { display: flex; flex-wrap: wrap; gap: 12px 22px; margin: 0; padding: 0; list-style: none; font-family: var(--font-body, 'Atkinson Hyperlegible Next', system-ui, sans-serif); font-weight: 700; font-size: 1.15rem; color: #1c1f26; } .ds-magnets li { display: inline-flex; align-items: center; gap: 9px; } .ds-magnet { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--magnet, #c8261e); color: #fff; font-family: var(--font-marker, 'Permanent Marker', cursive); font-size: 0.95rem; text-transform: uppercase; box-shadow: 0 2px 2px rgba(0,0,0,0.25), 0 5px 8px -2px rgba(0,0,0,0.35); }"
+    },
+    {
+      "name": "Leaderboard Row",
+      "kind": "custom",
+      "refersTo": "board-panel",
+      "description": "Score rows written on the board; first place sits on its own yellow post-it.",
+      "html": "<ol class=\"ds-lb\"><li class=\"ds-lb__row ds-lb__row--1\"><span class=\"ds-lb__rank\">1</span><span class=\"ds-lb__name\">Anna</span><span class=\"ds-lb__score\">8<small>/10</small></span></li><li class=\"ds-lb__row\"><span class=\"ds-lb__rank\">2</span><span class=\"ds-lb__name\">Björn</span><span class=\"ds-lb__score\">7<small>/10</small></span></li></ol>",
+      "css": ".ds-lb { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; color: #1c1f26; } .ds-lb__row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 2px dashed rgba(28,31,38,0.16); } .ds-lb__row--1 { border: 0; padding-block: 14px; background: linear-gradient(180deg, rgba(0,0,0,0.05), transparent 25%), #ffe45c; box-shadow: 0 1px 1px rgba(0,0,0,0.12), 0 10px 14px -8px rgba(0,0,0,0.45); transform: rotate(-0.8deg); } .ds-lb__rank { display: grid; place-items: center; width: 48px; height: 48px; font-family: var(--font-marker, 'Permanent Marker', cursive); font-size: 1.4rem; border: 3px solid currentColor; border-radius: 52% 46% 50% 48% / 46% 52% 48% 50%; } .ds-lb__name { font-family: var(--font-body, 'Atkinson Hyperlegible Next', system-ui, sans-serif); font-weight: 800; font-size: 1.4rem; } .ds-lb__score { font-family: var(--font-marker, 'Permanent Marker', cursive); font-size: 1.8rem; } .ds-lb__score small { font-family: var(--font-body, 'Atkinson Hyperlegible Next', system-ui, sans-serif); font-size: 0.42em; font-weight: 700; color: #5c6371; margin-left: 0.2em; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Meeting-Room Whiteboard",
+    "overview": "**Creative North Star: \"The Meeting-Room Whiteboard\"**\n\nEvery screen is one glossy whiteboard in an aluminium frame, hung on a deep green office wall. Everything is written on it with a black marker; one blue marker marks whatever is active right now; a green ring or tick means right and a red strike means wrong. Physical objects stuck to the board do the rest: post-it notes are the brand label, the primary action, the answer options, warnings and toasts, and round coloured magnets are the players. Nothing on the board is a boxed card; structure comes from dashed ghost lines drawn across the board and from post-its stuck on it.\n\nThe system reads at two distances. On the office TV the game code is scrawled at almost 10rem and the leaderboard is written large; on a phone the same board narrows to a single column of thumb-sized post-its. Hierarchy comes from scale, not from extra colour: a marker headline, a heavy sans question, quiet hints. Shapes are hand-drawn: radii are asymmetric so no line or ring is quite straight or quite round, and post-its sit a degree or two off true.\n\nIt rejects the dark stage with neon glow and the four-tile purple quiz clone. State is shown by a mark (a ring drawn around, a strike drawn through, a tick), never by recolouring a surface.",
+    "keyCharacteristics": [
+      "Whiteboard panel with aluminium frame and a marker tray, on a dark green wall.",
+      "Two voices: Permanent Marker for anything \"written\", Atkinson Hyperlegible Next for reading.",
+      "Blue is the only active colour; green and red are verdicts only.",
+      "Post-its are the only filled, coloured surfaces; magnets are the only round solids.",
+      "Hand-drawn asymmetric radii, small tilts, ink that draws itself in."
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Marker Rule",
+        "body": "Blue means \"active or selected now\" and nothing else. Never use it for decoration, headings, or a second accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mark Not Hue Rule",
+        "body": "Right and wrong are shown by a drawn mark (green ring or tick, red strike) in addition to colour, and options always carry a letter, so colour is never the only clue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stationery Rule",
+        "body": "Saturated fills appear only as post-its and magnets. The board itself is never tinted and never boxed.",
+        "section": "colors"
+      },
+      {
+        "name": "The Written vs Read Rule",
+        "body": "Marker for short things that are written on the board (titles, labels, numbers, scores, codes); Atkinson for anything a player has to read and understand (questions, answers, hints, names). A marker sentence longer than a line is wrong.",
+        "section": "typography"
+      },
+      {
+        "name": "The Scale Alone Rule",
+        "body": "Hierarchy is built by size and the two families, not by colour; headings stay black ink.",
+        "section": "typography"
+      },
+      {
+        "name": "The Stuck-On Rule",
+        "body": "A shadow means \"a physical object is stuck to the board\". Something drawn on the board never gets one.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep every screen on the one framed board on the green wall, with the brand post-it over its top-left edge.",
+      "Do use blue (marker-blue) only for what is active or selected right now.",
+      "Do show right and wrong as drawn marks (green ring or tick, red strike) plus the option letter, not by colour alone.",
+      "Do make primary actions, warnings and toasts post-its with the note-rest shadow and a tilt within ±3deg.",
+      "Do separate content with 2px dashed ghost-ink lines instead of boxes.",
+      "Do use Permanent Marker for short written labels and numbers, and Atkinson Hyperlegible Next for questions, answers and anything read.",
+      "Do draw icons as hand-drawn SVG masks (tick, cross, chevron) in currentColor.",
+      "Do keep the host view readable from the back of the room: TV width 1280px, question up to 3.6rem, answers up to 2rem."
+    ],
+    "donts": [
+      "Don't use a dark stage, neon glow, or the four-tile purple quiz layout.",
+      "Don't put boxed or bordered cards on the board; a container is either drawn (dashed line, ring, outline) or a stuck-on post-it.",
+      "Don't give a drawn element (input, ghost button, chip, divider) a drop shadow; shadows belong to post-its, magnets and the board.",
+      "Don't introduce a second active colour or tint the board.",
+      "Don't set questions, answer text or paragraphs in Permanent Marker.",
+      "Don't use perfect geometric rings or rectangles for drawn marks; use the hand radii."
+    ]
+  }
+}

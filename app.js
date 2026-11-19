@@ -611,7 +611,7 @@ function celebrate() {
 
   const canvas = els.confetti;
   const ctx = canvas.getContext('2d');
-  const colors = ['#ffa600', '#ffc15a', '#e07b00', '#ff8a00', '#f9f7f4'];
+  const colors = ['#ffe45c', '#ffa3c6', '#93d4ff', '#b9ef9c', '#ffbd6b', '#cfbcff'];
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   const resize = () => {
