@@ -46,6 +46,7 @@ const els = {
   hostResult: $('#host-result'),
   hostPlayers: $('#host-players'),
   hostPlayersCount: $('#host-players-count'),
+  hostPlayersProgress: $('#host-players-progress'),
   hostPlayersList: $('#host-players-list'),
   answerCountField: $('#answer-count-field'),
   answerCount: $('#answer-count'),
@@ -176,6 +177,20 @@ function getPlayerId() {
   }
 }
 
+/* Serverns felmeddelanden är delvis på engelska – välj text efter statuskod.
+   Svenska meddelanden från servern (t.ex. "Spelet är avslutat") släpps igenom. */
+function friendlyApiError(status, body) {
+  const server = String(body?.error ?? '');
+  if (status === 409) return server || 'Spelet är avslutat.';
+  if (status === 400 && server.startsWith('Ogiltigt')) return server;
+  if (status === 400 || status === 422) return 'Något i uppgifterna stämmer inte – kontrollera dem och försök igen.';
+  if (status === 403) return 'Bara den som skapade spelet kan göra det här.';
+  if (status === 404) return 'Hittar inget spel med den koden – kontrollera att den är rätt skriven.';
+  if (status === 429) return 'För många försök just nu – vänta en stund och försök igen.';
+  if (status >= 500) return 'Något gick fel hos servern – försök igen om en stund.';
+  return 'Något gick fel – försök igen.';
+}
+
 async function apiRequest(path, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
@@ -191,13 +206,15 @@ async function apiRequest(path, options = {}) {
     });
     const body = await request.json().catch(() => ({}));
     if (!request.ok) {
-      const error = new Error(body.error ?? body.message ?? `API-fel ${request.status}`);
+      const error = new Error(friendlyApiError(request.status, body));
       error.status = request.status;
       throw error;
     }
     return body;
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('Svarar inte – kontrollera nätverket');
+    if (error.name === 'AbortError') throw new Error('Servern svarar inte – kontrollera nätverket och försök igen.');
+    /* fetch kastar TypeError när nätet är nere eller servern inte nås */
+    if (error instanceof TypeError) throw new Error('Ingen kontakt med servern – kontrollera nätverket och försök igen.');
     throw error;
   } finally {
     clearTimeout(timer);
@@ -528,6 +545,8 @@ function renderHost() {
 
 /* Visar vilka som gått med i spelet – och markerar dem som redan skickat in.
    Spelare som skickat in men saknar anmälan (t.ex. äldre spel) tas också med. */
+let hostTally = { joined: 0, submitted: 0 };
+
 function renderHostPlayers(joined, players) {
   if (!els.hostPlayers || !els.hostPlayersList) return;
 
@@ -561,7 +580,10 @@ function renderHostPlayers(joined, players) {
   ));
 
   els.hostPlayers.hidden = list.length === 0;
+  const submittedCount = list.filter((player) => submitted.has(player.playerId)).length;
+  hostTally = { joined: list.length, submitted: submittedCount };
   els.hostPlayersCount.textContent = String(list.length);
+  els.hostPlayersProgress.textContent = `${submittedCount} av ${list.length} har skickat in sitt resultat`;
   els.hostPlayersList.innerHTML = list.map((player) => {
     const done = submitted.has(player.playerId);
     return `
@@ -585,6 +607,7 @@ function startHostPolling() {
       await showHostResult();
       return true;
     }
+    renderHostPlayers(game.joined, game.players);
   });
 }
 
@@ -732,6 +755,12 @@ els.copyGameCode.addEventListener('click', async () => {
 els.endGame.addEventListener('click', async () => {
   if (!state.gameId) return;
 
+  const waiting = hostTally.joined - hostTally.submitted;
+  const warning = waiting > 0
+    ? `${waiting} av ${hostTally.joined} har inte skickat in sitt resultat än och får inte med det.\n\n`
+    : '';
+  if (!confirm(`${warning}Avsluta spelet för alla? Det går inte att ångra.`)) return;
+
   /* Knapparna och spelkoden går ur bilden direkt, så att det tydligt syns att
      spelet avslutats. Om anropet misslyckas sätts vyn tillbaka. */
   stopPolling();
@@ -853,8 +882,9 @@ els.joinGame.addEventListener('click', async () => {
     render();
     scrollToTop();
   } catch (error) {
-    els.gameCodeStatus.textContent = `Kunde inte hitta spelet: ${error.message}`;
-    toast(`Kunde inte hitta spelet: ${error.message}`);
+    const message = error.status === 404 ? error.message : `Kunde inte gå med i spelet: ${error.message}`;
+    els.gameCodeStatus.textContent = message;
+    toast(message);
   } finally {
     els.joinGame.disabled = false;
   }
@@ -1282,6 +1312,7 @@ els.answerGrid.addEventListener('click', (e) => {
   const idx = Number(btn.dataset.markIndex);
   const wasCorrect = Boolean(state.correctAnswers[idx]);
   const wasWrong = Boolean(state.wrongAnswers[idx]);
+  const wasSubmitted = state.scoreSubmitted;
 
   delete state.correctAnswers[idx];
   delete state.wrongAnswers[idx];
@@ -1297,7 +1328,12 @@ els.answerGrid.addEventListener('click', (e) => {
   stopPolling();
   state.scoreSubmitted = false;
   els.submitScore.disabled = !state.gameId;
-  els.scoreStatus.textContent = '';
+  if (wasSubmitted) {
+    els.scoreStatus.textContent = 'Du har ändrat dina rättningar – tryck Spara resultat igen.';
+    toast('Ändringen är inte sparad än');
+  } else {
+    els.scoreStatus.textContent = '';
+  }
   save();
 });
 

@@ -365,6 +365,13 @@ h1, h2, h3 { margin: 0; line-height: 1.15; }
   letter-spacing: 0;
 }
 
+.host-players__progress {
+  margin: 10px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 .host-players__list {
   display: flex;
   flex-wrap: wrap;
