@@ -111,7 +111,7 @@ kontrollerar att facit inte syns för deltagare under en fråga.
 - **Valfritt antal frågor via länk:** `index.html?frgor=25` (eller `?questions=25`) startar
   svarsformuläret direkt med 25 frågor.
 - **QR-kod i värdvyn:** bredvid spelkoden visas en QR-kod som pekar på
-  `live/?kod=ABCDE`. Den som skannar får spelkoden ifylld och behöver bara skriva
+  `live/index.html?kod=ABCDE`. Den som skannar får spelkoden ifylld och behöver bara skriva
   sitt namn och trycka **Gå med**. Parametern `?kod=` (eller `?code=`) fungerar även att
   klistra in manuellt, och städas bort från adressfältet när den använts.
   QR-koden ritas lokalt av `qrcode.js` (MIT, Kazuhiko Arase) – ingen extern tjänst.
