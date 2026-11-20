@@ -81,6 +81,41 @@
           </div>
         </div>
 
+        <details class="ai-gen">
+          <summary class="field__label">Skapa fr&aring;gor med AI</summary>
+          <div class="live-settings">
+            <div class="field">
+              <label class="field__label" for="ai-topic">&Auml;mne</label>
+              <input class="input" type="text" id="ai-topic" maxlength="100" placeholder="t.ex. svensk musik p&aring; 90-talet">
+            </div>
+            <div class="field">
+              <label class="field__label" for="ai-count">Antal fr&aring;gor</label>
+              <input class="input" type="number" id="ai-count" min="1" max="50" value="10">
+            </div>
+            <div class="field">
+              <label class="field__label" for="ai-level">Sv&aring;righet</label>
+              <div class="select-wrap">
+                <select class="input select-wrap__select" id="ai-level">
+                  <option>l&auml;tt</option>
+                  <option selected>medel</option>
+                  <option>sv&aring;r</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="actions actions--wrap">
+            <button class="btn btn--ghost" type="button" data-ai-url="https://chatgpt.com/?q=">1. &Ouml;ppna i ChatGPT</button>
+            <button class="btn btn--ghost" type="button" data-ai-url="https://claude.ai/new?q=">1. &Ouml;ppna i Claude</button>
+          </div>
+          <div class="field">
+            <label class="field__label" for="ai-answer">2. Klistra in AI:ns svar</label>
+            <textarea class="input ai-gen__answer" id="ai-answer" rows="5" placeholder='{"title": "...", "questions": [...]}'></textarea>
+          </div>
+          <div class="actions actions--wrap">
+            <button class="btn btn--ghost" type="button" id="ai-use">3. Anv&auml;nd fr&aring;gorna</button>
+          </div>
+        </details>
+
         <ol class="live-editor" id="editor-questions"></ol>
 
         <div class="actions actions--wrap">

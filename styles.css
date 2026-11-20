@@ -1897,3 +1897,8 @@ kbd {
   .panel::after { display: none; }
   .q--elimination, .elimination-summary li { box-shadow: none; transform: none; border: 1px solid #999; background: #fff; }
 }
+
+/* Live-redigeraren: AI-generering (ChatGPT utan backend) */
+.ai-gen { margin-block: 1rem; }
+.ai-gen > summary { cursor: pointer; }
+.ai-gen__answer { width: 100%; min-height: 6rem; resize: vertical; font-family: monospace; }

@@ -507,6 +507,43 @@ els.importQuiz.addEventListener('change', async () => {
   }
 });
 
+/* AI utan backend: värden kör prompten i ChatGPT eller Claude och klistrar in svaret. */
+function aiPrompt(topic, count, level) {
+  return `Skapa ett quiz på svenska om "${topic}" med ${count} flervalsfrågor, svårighet: ${level}. `
+    + 'Varje fråga har 4 svarsalternativ och exakt ett rätt. Var noga med att fakta stämmer. '
+    + 'Svara ENBART med JSON i exakt detta format, utan annan text: '
+    + '{"title":"...","questions":[{"text":"...","options":["...","...","...","..."],"correct":0}]} '
+    + 'där correct är index (0–3) för rätt alternativ. Variera vilket index som är rätt.';
+}
+
+document.querySelectorAll('[data-ai-url]').forEach((button) => button.addEventListener('click', () => {
+  const topic = $('#ai-topic').value.trim();
+  if (!topic) {
+    els.editorStatus.textContent = 'Skriv ett ämne först.';
+    $('#ai-topic').focus();
+    return;
+  }
+  const count = Math.min(MAX_QUESTIONS, Math.max(1, Number($('#ai-count').value) || 10));
+  /* shortcut: ?q= är inget officiellt API hos ChatGPT/Claude; slutar det fungera, visa prompten för kopiering i stället. */
+  window.open(button.dataset.aiUrl + encodeURIComponent(aiPrompt(topic, count, $('#ai-level').value)), '_blank', 'noopener');
+}));
+
+$('#ai-use').addEventListener('click', () => {
+  const text = $('#ai-answer').value;
+  /* AI:n lindar ofta in JSON i ```json … ```, så ta bara det mellan första { och sista }. */
+  try {
+    const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+    if (!Array.isArray(parsed.questions) || !parsed.questions.length) throw new Error('inga frågor');
+    draft = sanitizeDraft({ ...draft, title: parsed.title || draft.title, questions: parsed.questions });
+    saveDraft();
+    renderEditor();
+    $('#ai-answer').value = '';
+    els.editorStatus.textContent = `Hämtade ${draft.questions.length} frågor. Läs igenom dem innan du startar.`;
+  } catch {
+    els.editorStatus.textContent = 'Kunde inte läsa svaret – klistra in hela JSON-svaret från AI:n.';
+  }
+});
+
 els.openEditor.addEventListener('click', () => {
   state.name = els.name.value.trim();
   show('editor');
