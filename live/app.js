@@ -663,8 +663,14 @@ function renderHostQr() {
 function renderHostPlayers() {
   const joined = game.joined ?? [];
   els.hostPlayersCount.textContent = String(joined.length);
-  els.hostPlayersList.innerHTML = joined.map((player, i) => `
-      <li class="host-players__item">
+  // Rita bara om när listan ändrats, och låt bara nya spelare animeras in
+  const list = els.hostPlayersList;
+  const ids = joined.map((player) => player.playerId).join();
+  if (list.dataset.ids === ids) return;
+  const seen = new Set((list.dataset.ids ?? '').split(','));
+  list.dataset.ids = ids;
+  list.innerHTML = joined.map((player, i) => `
+      <li class="host-players__item${seen.has(player.playerId) ? ' is-seen' : ''}">
         <span class="host-players__avatar magnet--${i % 6}" aria-hidden="true">${escapeHtml(player.name.charAt(0))}</span>
         <span class="host-players__name">${escapeHtml(player.name)}</span>
       </li>`).join('');

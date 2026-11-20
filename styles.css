@@ -80,7 +80,7 @@ body {
   display: flex;
   flex-direction: column;
   font-family: var(--font-body);
-  font-size: 17px;
+  font-size: 1.0625rem; /* 17px, men följer användarens textstorlek */
   line-height: 1.5;
   color: var(--ink);
   caret-color: var(--blue);
@@ -363,6 +363,8 @@ a:hover { text-decoration-style: wavy; }
   animation: snap-on 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.host-players__item.is-seen { animation: none; }
+
 @keyframes snap-on {
   from { opacity: 0; transform: translateY(-10px) scale(1.15); }
   to   { opacity: 1; transform: none; }
@@ -632,8 +634,11 @@ a:hover { text-decoration-style: wavy; }
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.crosslink:hover { color: var(--ink); text-decoration: none; transform: rotate(1deg) translateY(-4px); box-shadow: var(--note-shadow-lift); }
-.crosslink:hover::after { transform: translateX(4px); }
+/* Lyft bara med riktig muspekare – på touch fastnar :hover efter tryck */
+@media (hover: hover) {
+  .crosslink:hover { color: var(--ink); text-decoration: none; transform: rotate(1deg) translateY(-4px); box-shadow: var(--note-shadow-lift); }
+  .crosslink:hover::after { transform: translateX(4px); }
+}
 .crosslink:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
 
 /* Smalare skärmar: lappen sitter under formuläret i stället för i hörnet */
@@ -907,8 +912,13 @@ a:hover { text-decoration-style: wavy; }
     linear-gradient(180deg, rgba(0, 0, 0, 0.05), transparent 22%),
     linear-gradient(315deg, rgba(0, 0, 0, 0.07), transparent 14%),
     var(--note-yellow);
-  box-shadow: var(--note-shadow-lift);
-  transform: rotate(0deg) translateY(-3px);
+}
+
+@media (hover: hover) {
+  .btn--primary:hover {
+    box-shadow: var(--note-shadow-lift);
+    transform: rotate(0deg) translateY(-3px);
+  }
 }
 
 .btn--primary:active { transform: rotate(0deg) translateY(1px); box-shadow: var(--note-shadow); }
@@ -1203,6 +1213,8 @@ kbd {
 }
 
 .opt:hover .opt__badge { color: var(--ink); background: rgba(28, 31, 38, 0.05); }
+/* Direkt respons när fingret trycker, innan ringen ritas vid släpp */
+.opt:active .opt__badge { color: var(--ink); background: rgba(28, 31, 38, 0.1); transition: none; }
 
 .opt input:focus-visible + .opt__badge {
   outline: 3px solid var(--blue);
@@ -1667,7 +1679,9 @@ kbd {
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s, filter 0.2s;
 }
 
-.live-answer:hover:not(:disabled) { transform: rotate(0deg) translateY(-3px); box-shadow: var(--note-shadow-lift); }
+@media (hover: hover) {
+  .live-answer:hover:not(:disabled) { transform: rotate(0deg) translateY(-3px); box-shadow: var(--note-shadow-lift); }
+}
 .live-answer:active:not(:disabled) { transform: rotate(0deg) translateY(1px); box-shadow: var(--note-shadow); }
 .live-answer:focus-visible { outline: 4px solid var(--blue); outline-offset: 4px; }
 .live-answer:disabled { cursor: default; opacity: 0.35; filter: saturate(0.3); }
@@ -1808,7 +1822,7 @@ kbd {
 /* ---------- Responsivt ---------- */
 
 @media (max-width: 620px) {
-  body { font-size: 16px; }
+  body { font-size: 1rem; }
   .topbar { padding: 18px 16px 0; }
   .brand { margin: 0 0 -22px 14px; padding: 10px 16px 12px; }
   .main { padding: 0 8px 56px; }
