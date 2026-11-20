@@ -534,14 +534,18 @@ document.querySelectorAll('[data-ai-url]').forEach((button) => button.addEventLi
   if (prompt) window.open(button.dataset.aiUrl + encodeURIComponent(prompt), '_blank', 'noopener');
 }));
 
-$('#ai-copy').addEventListener('click', async () => {
+$('#ai-copy').addEventListener('click', async (e) => {
+  const button = e.currentTarget;
   const prompt = formPrompt();
   if (!prompt) return;
   try {
     await navigator.clipboard.writeText(prompt);
-    els.editorStatus.textContent = 'Prompten är kopierad – klistra in den i valfri AI.';
+    /* Statusraden ligger långt under knappen, så kvittensen visas på knappen. */
+    button.textContent = 'Kopierad! Klistra in i valfri AI';
+    setTimeout(() => { button.textContent = '1. Kopiera prompten'; }, 2500);
   } catch {
     els.editorStatus.textContent = 'Kunde inte kopiera – markera prompten och kopiera själv: ' + prompt;
+    els.editorStatus.scrollIntoView({ block: 'center' });
   }
 });
 
