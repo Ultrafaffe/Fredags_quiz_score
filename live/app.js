@@ -141,7 +141,8 @@ async function apiRequest(path, options = {}) {
       ...options,
       signal: controller.signal,
       headers: {
-        'content-type': 'application/json',
+        /* Utan body ingen content-type – då slipper GET en CORS-preflight per ny ?wait=-URL */
+        ...(options.body ? { 'content-type': 'application/json' } : {}),
         ...(options.headers ?? {}),
       },
     });
@@ -166,8 +167,8 @@ async function apiRequest(path, options = {}) {
 const gamePath = (suffix = '') => `/games/${encodeURIComponent(state.gameId)}${suffix}`;
 const hostHeaders = () => (state.hostToken ? { 'x-host-token': state.hostToken } : {});
 
-async function fetchGame() {
-  const next = await apiRequest(gamePath(), { headers: hostHeaders() });
+async function fetchGame(suffix = '') {
+  const next = await apiRequest(gamePath(suffix), { headers: hostHeaders() });
   applyGame(next);
   return next;
 }
@@ -203,13 +204,15 @@ function startPolling(fn, ms = 2000) {
     running = true;
     clearTimeout(pollTimer);
     let done = false;
+    let failed = false;
     if (!document.hidden) {
-      try { done = await fn(); } catch { /* försök igen nästa varv */ }
+      try { done = await fn(); } catch { failed = true; /* försök igen nästa varv */ }
     }
     running = false;
     if (pollTick !== tick) return; // stoppad eller ersatt medan anropet pågick
     if (done) { stopPolling(); return; }
-    pollTimer = setTimeout(tick, typeof ms === 'function' ? ms() : ms);
+    /* Efter fel (t.ex. 429 när Lambda-gränsen nås) – vänta längre i stället för att hamra */
+    pollTimer = setTimeout(tick, failed ? 2000 : (typeof ms === 'function' ? ms() : ms));
   };
   pollTick = tick;
   pollTimer = setTimeout(tick, 0);
@@ -220,16 +223,18 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && pollTick) pollTick();
 });
 
-/* Spelare som väntar på värdens nästa fråga (lobby/reveal) pollar tätast – annars känns starten seg. */
+/* Spelare long-pollar: servern håller anropet tills fasen ändras, så kort paus räcker.
+   Värden pollar vanligt – den behöver se nya deltagare och svar löpande. */
+const longPoll = () => state.view === 'player' && game;
 const pollInterval = () => {
-  if (game?.phase === 'question') return 1000;
-  return state.view === 'player' ? 500 : 2000;
+  if (longPoll()) return 300;
+  return game?.phase === 'question' ? 1000 : 2000;
 };
 
 function startGamePolling() {
   startPolling(async () => {
     try {
-      const next = await fetchGame();
+      const next = await fetchGame(longPoll() ? `?wait=${encodeURIComponent(`${game.phase}:${game.currentIndex}`)}` : '');
       return next.phase === 'finished';
     } catch (error) {
       if (error.status === 404) {

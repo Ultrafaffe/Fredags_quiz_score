@@ -46,7 +46,9 @@ const header = (event, name) => {
 
 const getGame = async (gameId) => (await database.send(new GetCommand({
   TableName: tableName,
-  Key: { gameId }
+  Key: { gameId },
+  /* Annars kan en läsning direkt efter värdens PATCH ge gamla fasen i upp till ~1 s */
+  ConsistentRead: true
 }))).Item;
 
 const isHost = (event, game) => {
@@ -56,7 +58,12 @@ const isHost = (event, game) => {
 
 const isConditionFailure = (error) => error?.name === "ConditionalCheckFailedException";
 
-export const handler = async (event) => {
+/* Long-poll: GET svarar först när fas/fråga ändrats, max så här länge */
+const LONG_POLL_MS = 6000; // under appens 8 s-timeout i apiRequest
+const LONG_POLL_STEP_MS = 150;
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+export const handler = async (event, context) => {
   const method = event?.requestContext?.http?.method
     ?? event?.httpMethod
     ?? "GET";
@@ -275,9 +282,20 @@ export const handler = async (event) => {
 
   // GET /games/{gameId}
   if (method === "GET" && requestedGameId) {
-    const game = await getGame(requestedGameId);
+    let game = await getGame(requestedGameId);
 
     if (!game) return response(404, { error: "Game not found" });
+
+    /* ?wait=fas:index – vänta tills värden byter läge. Lämnar 1 s marginal mot Lambdas timeout. */
+    const wait = event?.queryStringParameters?.wait;
+    if (wait) {
+      const budget = Math.min(LONG_POLL_MS, (context?.getRemainingTimeInMillis?.() ?? 3000) - 1000);
+      const deadline = Date.now() + budget;
+      while (`${game.phase}:${game.currentIndex}` === wait && Date.now() + LONG_POLL_STEP_MS < deadline) {
+        await sleep(LONG_POLL_STEP_MS);
+        game = (await getGame(requestedGameId)) ?? game;
+      }
+    }
 
     /* Spelare ser aldrig facit före reveal, och aldrig värdtokenen */
     return response(200, publicState(game, { isHost: isHost(event, game) }));
