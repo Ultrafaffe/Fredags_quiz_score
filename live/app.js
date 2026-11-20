@@ -220,7 +220,11 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && pollTick) pollTick();
 });
 
-const pollInterval = () => (game?.phase === 'question' ? 1000 : 2000);
+/* Spelare som väntar på värdens nästa fråga (lobby/reveal) pollar tätast – annars känns starten seg. */
+const pollInterval = () => {
+  if (game?.phase === 'question') return 1000;
+  return state.view === 'player' ? 500 : 2000;
+};
 
 function startGamePolling() {
   startPolling(async () => {
