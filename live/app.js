@@ -516,17 +516,34 @@ function aiPrompt(topic, count, level) {
     + 'där correct är index (0–3) för rätt alternativ. Variera vilket index som är rätt.';
 }
 
-document.querySelectorAll('[data-ai-url]').forEach((button) => button.addEventListener('click', () => {
+/* Prompten från formuläret, eller null (med felmeddelande) om ämnet saknas. */
+function formPrompt() {
   const topic = $('#ai-topic').value.trim();
   if (!topic) {
     els.editorStatus.textContent = 'Skriv ett ämne först.';
     $('#ai-topic').focus();
-    return;
+    return null;
   }
   const count = Math.min(MAX_QUESTIONS, Math.max(1, Number($('#ai-count').value) || 10));
-  /* shortcut: ?q= är inget officiellt API hos ChatGPT/Claude; slutar det fungera, visa prompten för kopiering i stället. */
-  window.open(button.dataset.aiUrl + encodeURIComponent(aiPrompt(topic, count, $('#ai-level').value)), '_blank', 'noopener');
+  return aiPrompt(topic, count, $('#ai-level').value);
+}
+
+document.querySelectorAll('[data-ai-url]').forEach((button) => button.addEventListener('click', () => {
+  const prompt = formPrompt();
+  /* shortcut: ?q= är inget officiellt API hos ChatGPT/Claude; slutar det fungera finns Kopiera prompten. */
+  if (prompt) window.open(button.dataset.aiUrl + encodeURIComponent(prompt), '_blank', 'noopener');
 }));
+
+$('#ai-copy').addEventListener('click', async () => {
+  const prompt = formPrompt();
+  if (!prompt) return;
+  try {
+    await navigator.clipboard.writeText(prompt);
+    els.editorStatus.textContent = 'Prompten är kopierad – klistra in den i valfri AI.';
+  } catch {
+    els.editorStatus.textContent = 'Kunde inte kopiera – markera prompten och kopiera själv: ' + prompt;
+  }
+});
 
 $('#ai-use').addEventListener('click', () => {
   const text = $('#ai-answer').value;
